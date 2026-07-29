@@ -445,5 +445,4 @@ CMakeFiles/QueueingCalculator.dir/mainwindow.cpp.obj: \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qabstractbutton.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QVBoxLayout \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QWidget \
- C:/Qt/6.11.1/mingw_64/include/QtGui/QFont \
- C:/Qt/6.11.1/mingw_64/include/QtWidgets/QSpacerItem
+ C:/Qt/6.11.1/mingw_64/include/QtGui/QFont

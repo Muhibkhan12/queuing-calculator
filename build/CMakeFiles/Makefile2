@@ -79,8 +79,8 @@ clean: CMakeFiles/QueueingCalculator_autogen.dir/clean
 # Target rules for target CMakeFiles/QueueingCalculator.dir
 
 # All Build rule for target.
-CMakeFiles/QueueingCalculator.dir/all: CMakeFiles/QueueingCalculator_autogen_timestamp_deps.dir/all
 CMakeFiles/QueueingCalculator.dir/all: CMakeFiles/QueueingCalculator_autogen.dir/all
+CMakeFiles/QueueingCalculator.dir/all: CMakeFiles/QueueingCalculator_autogen_timestamp_deps.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\QueueingCalculator.dir\build.make CMakeFiles/QueueingCalculator.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\QueueingCalculator.dir\build.make CMakeFiles/QueueingCalculator.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=C:\Users\RA\Desktop\sef-project\build\CMakeFiles --progress-num=1,2,3,4,5,6,7 "Built target QueueingCalculator"

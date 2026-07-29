@@ -87,7 +87,7 @@ void MainWindow::setupUI()
     title->setObjectName("appTitle");
     title->setAlignment(Qt::AlignCenter);
 
-    QLabel *subtitle = new QLabel("Analytical performance measures for classic queueing models — no simulation required");
+    QLabel *subtitle = new QLabel("Analytical performance measures for classic queueing models ");
     subtitle->setObjectName("appSubtitle");
     subtitle->setAlignment(Qt::AlignCenter);
 
