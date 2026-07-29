@@ -399,4 +399,5 @@ CMakeFiles/QueueingCalculator.dir/main.cpp.obj: \
  C:/Qt/6.11.1/mingw_64/include/QtGui/qfontinfo.h \
  C:/Qt/6.11.1/mingw_64/include/QtGui/qfontvariableaxis.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qsizepolicy.h \
- C:/Qt/6.11.1/mingw_64/include/QtWidgets/qtabwidget.h
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/qtabwidget.h \
+ C:\Users\RA\Desktop\sef-project\utilities.h

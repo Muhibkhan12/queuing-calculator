@@ -378,9 +378,10 @@ C:/Users/RA/Desktop/sef-project/mainwindow.h
  mdp:C:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h
  mdp:C:/Users/RA/Desktop/sef-project/build/QueueingCalculator_autogen/moc_predefs.h
  mdp:C:/Users/RA/Desktop/sef-project/mainwindow.h
+ mdp:C:/Users/RA/Desktop/sef-project/utilities.h
 C:/Users/RA/Desktop/sef-project/queue_models.h
 C:/Users/RA/Desktop/sef-project/utilities.h
-C:/Users/RA/Desktop/sef-project/main.cpp
 C:/Users/RA/Desktop/sef-project/mainwindow.cpp
+C:/Users/RA/Desktop/sef-project/main.cpp
 C:/Users/RA/Desktop/sef-project/queue_models.cpp
 C:/Users/RA/Desktop/sef-project/utilities.cpp

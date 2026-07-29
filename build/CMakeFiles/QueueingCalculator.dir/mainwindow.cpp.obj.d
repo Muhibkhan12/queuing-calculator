@@ -386,8 +386,8 @@ CMakeFiles/QueueingCalculator.dir/mainwindow.cpp.obj: \
  C:/Qt/6.11.1/mingw_64/include/QtGui/qcursor.h \
  C:/Qt/6.11.1/mingw_64/include/QtGui/qbitmap.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qtabwidget.h \
- C:\Users\RA\Desktop\sef-project\queue_models.h \
  C:\Users\RA\Desktop\sef-project\utilities.h \
+ C:\Users\RA\Desktop\sef-project\queue_models.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QApplication \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qapplication.h \
  C:/Qt/6.11.1/mingw_64/include/QtCore/qcoreapplication.h \

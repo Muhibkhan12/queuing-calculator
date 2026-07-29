@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "utilities.h"
 
 class QLabel;
 class QLineEdit;
@@ -47,6 +48,16 @@ private:
     // result fields (used when input is invalid or the system is unstable)
     void showError(const QString &message);
 
+    // Reads a "Hours"/"Minutes"/"Seconds" QComboBox selection and
+    // returns the matching TimeUnit enum value (used for lambdaUnitBox
+    // and muUnitBox before calling convertToRatePerMinute()).
+    TimeUnit unitFromComboBox(QComboBox *box) const;
+
+    // Reads a "Rate"/"Mean Time" QComboBox selection and returns true
+    // if "Mean Time" is selected (used for lambdaModeBox and muModeBox
+    // before calling convertToRatePerMinute()).
+    bool isMeanFromComboBox(QComboBox *box) const;
+
     // Input
     QComboBox *modelBox;
 
@@ -55,6 +66,16 @@ private:
     QLineEdit *serverEdit;
     QLineEdit *capacityEdit;
     QLineEdit *varianceEdit;
+
+    // Time-conversion controls for lambda (arrival) and mu (service).
+    // Each has its own "mode" (Rate vs Mean Time) and "unit"
+    // (Hours/Minutes/Seconds) so lambda and mu can be entered in
+    // completely different units and still be converted to a
+    // consistent internal rate before the formulas run.
+    QComboBox *lambdaModeBox;   // "Rate" or "Mean Time"
+    QComboBox *lambdaUnitBox;   // "Hours" / "Minutes" / "Seconds"
+    QComboBox *muModeBox;       // "Rate" or "Mean Time"
+    QComboBox *muUnitBox;       // "Hours" / "Minutes" / "Seconds"
 
     // Labels
     QLabel *serverLabel;

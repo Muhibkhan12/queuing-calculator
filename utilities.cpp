@@ -14,6 +14,60 @@
 #include <cctype>
 
 // ==========================================================================
+// convertToMinutes
+// --------------------------------------------------------------------------
+// Converts "value" (a duration expressed in "unit") into minutes.
+//   Hours:   1 hour   = 60 minutes  -> multiply by 60
+//   Minutes: already in minutes     -> unchanged
+//   Seconds: 1 second = 1/60 minute -> divide by 60
+// ==========================================================================
+double convertToMinutes(double value, TimeUnit unit)
+{
+    switch (unit) {
+        case TimeUnit::Hours:
+            return value * 60.0;
+        case TimeUnit::Minutes:
+            return value;
+        case TimeUnit::Seconds:
+            return value / 60.0;
+    }
+    return value; // unreachable, keeps compiler happy
+}
+
+// ==========================================================================
+// convertToRatePerMinute
+// --------------------------------------------------------------------------
+// Standardizes a user-entered lambda or mu value into "events per minute",
+// regardless of whether the user gave a RATE or a MEAN TIME, and
+// regardless of which time unit (Hours/Minutes/Seconds) they chose.
+//
+// Case 1 - "inputValue" is already a RATE (isMean == false):
+//   The rate is "inputValue" events per 1 unit of time. To express it
+//   as events per minute, divide by how many minutes are in that 1 unit:
+//     ratePerMinute = inputValue / convertToMinutes(1.0, unit)
+//   e.g. 5 customers/hour -> 5 / 60 = 0.0833 customers/minute
+//
+// Case 2 - "inputValue" is a MEAN TIME (isMean == true):
+//   "inputValue" is the average time (in "unit") between events (e.g.
+//   average minutes between arrivals, or average minutes to serve one
+//   customer). First convert that mean time to minutes, then the rate
+//   is simply its reciprocal:
+//     meanInMinutes = convertToMinutes(inputValue, unit)
+//     ratePerMinute = 1 / meanInMinutes
+//   e.g. mean = 4 minutes/customer -> 1/4 = 0.25 customers/minute
+// ==========================================================================
+double convertToRatePerMinute(double inputValue, bool isMean, TimeUnit unit)
+{
+    if (isMean) {
+        double meanInMinutes = convertToMinutes(inputValue, unit);
+        return 1.0 / meanInMinutes;
+    } else {
+        double oneUnitInMinutes = convertToMinutes(1.0, unit);
+        return inputValue / oneUnitInMinutes;
+    }
+}
+
+// ==========================================================================
 // tryParseDouble
 // --------------------------------------------------------------------------
 // Uses std::istringstream to attempt a full numeric conversion of "text".

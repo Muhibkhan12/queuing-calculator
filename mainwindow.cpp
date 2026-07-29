@@ -38,7 +38,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupUI()
 {
-    resize(900,700);
+    resize(950,780);
     setWindowTitle("Queueing Calculator");
 
     QWidget *central = new QWidget(this);
@@ -78,13 +78,45 @@ void MainWindow::setupUI()
     capacityEdit = new QLineEdit();
     varianceEdit = new QLineEdit();
 
+    // ---- Time-conversion controls ----
+    // Each of lambda and mu can independently be entered as a "Rate"
+    // (events per unit time) or a "Mean Time" (average time per event),
+    // and in whichever time unit is convenient (Hours/Minutes/Seconds).
+    // convertToRatePerMinute() in utilities.cpp standardizes both to a
+    // common "events per minute" rate before any formula runs.
+    lambdaModeBox = new QComboBox();
+    lambdaModeBox->addItems({"Rate", "Mean Time"});
+
+    lambdaUnitBox = new QComboBox();
+    lambdaUnitBox->addItems({"Hours", "Minutes", "Seconds"});
+
+    muModeBox = new QComboBox();
+    muModeBox->addItems({"Rate", "Mean Time"});
+
+    muUnitBox = new QComboBox();
+    muUnitBox->addItems({"Hours", "Minutes", "Seconds"});
+
     serverLabel = new QLabel("Servers");
     capacityLabel = new QLabel("Capacity");
     varianceLabel = new QLabel("Variance");
 
     form->addRow("Queue Model", modelBox);
-    form->addRow("Arrival Rate (λ)", lambdaEdit);
-    form->addRow("Service Rate (μ)", muEdit);
+
+    // Arrival rate row, with its mode/unit dropdowns placed right next
+    // to the input box so it's clear they modify how λ is interpreted.
+    QHBoxLayout *lambdaRow = new QHBoxLayout();
+    lambdaRow->addWidget(lambdaEdit);
+    lambdaRow->addWidget(lambdaModeBox);
+    lambdaRow->addWidget(lambdaUnitBox);
+    form->addRow("Arrival (λ)", lambdaRow);
+
+    // Service rate row, same idea.
+    QHBoxLayout *muRow = new QHBoxLayout();
+    muRow->addWidget(muEdit);
+    muRow->addWidget(muModeBox);
+    muRow->addWidget(muUnitBox);
+    form->addRow("Service (μ)", muRow);
+
     form->addRow(serverLabel, serverEdit);
     form->addRow(capacityLabel, capacityEdit);
     form->addRow(varianceLabel, varianceEdit);
@@ -128,15 +160,18 @@ void MainWindow::setupUI()
     resultLayout->addRow("P₀  (Prob. Empty)", p0Value);
     resultLayout->addRow("Lq  (Avg. in Queue)", lqValue);
     resultLayout->addRow("L  (Avg. in System)", lValue);
-    resultLayout->addRow("Wq  (Avg. Wait Time)", wqValue);
-    resultLayout->addRow("W  (Avg. Time in System)", wValue);
+    // Wq/W are computed in minutes internally (since lambda/mu are
+    // standardized to "events per minute" before the formulas run),
+    // so the row labels say so explicitly.
+    resultLayout->addRow("Wq  (Avg. Wait, minutes)", wqValue);
+    resultLayout->addRow("W  (Avg. Time in System, minutes)", wValue);
 
     // Keep references to the row's own QLabel (the "field label" Qt
     // creates for addRow) so changeModel() can hide/show the whole row.
     pBlockRowLabel = new QLabel("Pblock  (Blocking Prob.)");
     resultLayout->addRow(pBlockRowLabel, pBlockValue);
 
-    throughputRowLabel = new QLabel("Throughput");
+    throughputRowLabel = new QLabel("Throughput  (per minute)");
     resultLayout->addRow(throughputRowLabel, throughputValue);
 
     resultBox->setLayout(resultLayout);
@@ -250,6 +285,35 @@ void MainWindow::changeModel()
 }
 
 // ==========================================================================
+// unitFromComboBox
+// --------------------------------------------------------------------------
+// Maps the text of a "Hours"/"Minutes"/"Seconds" QComboBox to the
+// matching TimeUnit enum value used by convertToRatePerMinute().
+// ==========================================================================
+TimeUnit MainWindow::unitFromComboBox(QComboBox *box) const
+{
+    QString text = box->currentText();
+    if (text == "Hours") {
+        return TimeUnit::Hours;
+    } else if (text == "Seconds") {
+        return TimeUnit::Seconds;
+    }
+    return TimeUnit::Minutes;
+}
+
+// ==========================================================================
+// isMeanFromComboBox
+// --------------------------------------------------------------------------
+// Maps the text of a "Rate"/"Mean Time" QComboBox to a bool: true when
+// the user selected "Mean Time" (so the entered number is an average
+// time per event, not a rate).
+// ==========================================================================
+bool MainWindow::isMeanFromComboBox(QComboBox *box) const
+{
+    return box->currentText() == "Mean Time";
+}
+
+// ==========================================================================
 // showError
 // --------------------------------------------------------------------------
 // Displays "message" in the red status label and blanks out every result
@@ -275,9 +339,12 @@ void MainWindow::showError(const QString &message)
 // calculate
 // --------------------------------------------------------------------------
 // Reads the text from the input fields, validates/parses it using the
-// helpers in utilities.h, calls the matching calculate*() function from
-// queue_models.h for the currently selected model, and displays the
-// returned QueueResults (or an error message if inputs/stability fail).
+// helpers in utilities.h, converts lambda and mu to a standardized
+// "events per minute" rate (regardless of the Rate/Mean Time mode or
+// Hours/Minutes/Seconds unit the user picked for each), calls the
+// matching calculate*() function from queue_models.h for the currently
+// selected model, and displays the returned QueueResults (or an error
+// message if inputs/stability fail).
 // ==========================================================================
 void MainWindow::calculate()
 {
@@ -286,19 +353,27 @@ void MainWindow::calculate()
 
     QString model = modelBox->currentText();
 
-    // ---- Parse the two inputs required by every model: lambda and mu ----
-    double lambda = 0.0;
-    double mu = 0.0;
+    // ---- Parse the raw numbers the user typed for lambda and mu ----
+    double lambdaRaw = 0.0;
+    double muRaw = 0.0;
 
-    if (!tryParseDouble(lambdaEdit->text().toStdString(), lambda) || !isPositiveNumber(lambda)) {
-        showError("Please enter a valid positive number for Arrival Rate (λ).");
+    if (!tryParseDouble(lambdaEdit->text().toStdString(), lambdaRaw) || !isPositiveNumber(lambdaRaw)) {
+        showError("Please enter a valid positive number for Arrival (λ).");
         return;
     }
 
-    if (!tryParseDouble(muEdit->text().toStdString(), mu) || !isPositiveNumber(mu)) {
-        showError("Please enter a valid positive number for Service Rate (μ).");
+    if (!tryParseDouble(muEdit->text().toStdString(), muRaw) || !isPositiveNumber(muRaw)) {
+        showError("Please enter a valid positive number for Service (μ).");
         return;
     }
+
+    // ---- Standardize lambda and mu to "events per minute" ----
+    // This is where the Rate-vs-Mean-Time and Hours/Minutes/Seconds
+    // conversion happens, so lambda and mu end up in the SAME unit
+    // even if the user entered them completely differently (e.g.
+    // lambda as "customers per hour" and mu as "mean minutes to serve").
+    double lambda = convertToRatePerMinute(lambdaRaw, isMeanFromComboBox(lambdaModeBox), unitFromComboBox(lambdaUnitBox));
+    double mu     = convertToRatePerMinute(muRaw,     isMeanFromComboBox(muModeBox),     unitFromComboBox(muUnitBox));
 
     // ---- Dispatch to the correct model, parsing any extra fields it needs ----
     QueueResults result;
@@ -377,6 +452,11 @@ void MainWindow::clearFields()
     serverEdit->clear();
     capacityEdit->clear();
     varianceEdit->clear();
+
+    lambdaModeBox->setCurrentIndex(0);
+    lambdaUnitBox->setCurrentIndex(0);
+    muModeBox->setCurrentIndex(0);
+    muUnitBox->setCurrentIndex(0);
 
     rhoValue->setText("0.0000");
     p0Value->setText("0.0000");
