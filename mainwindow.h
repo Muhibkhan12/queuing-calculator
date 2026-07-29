@@ -9,6 +9,8 @@ class QLineEdit;
 class QPushButton;
 class QComboBox;
 class QGroupBox;
+class QFrame;
+class QGridLayout;
 
 /*
  * MainWindow
@@ -44,7 +46,14 @@ private slots:
 private:
     void setupUI();
 
-    // Shows an error message in the status label and blanks out all
+    // Builds one "metric card" (a small bordered panel showing a label
+    // and a big value) for the results grid. Returns the card frame
+    // (for show/hide control) and writes the value QLabel* into
+    // "valueLabelOut" so calculate()/showError() can update it later.
+    QFrame *createMetricCard(const QString &title, const QString &initialValue,
+                              QLabel *&valueLabelOut);
+
+    // Shows an error message in the status banner and blanks out all
     // result fields (used when input is invalid or the system is unstable)
     void showError(const QString &message);
 
@@ -77,7 +86,7 @@ private:
     QComboBox *muModeBox;       // "Rate" or "Mean Time"
     QComboBox *muUnitBox;       // "Hours" / "Minutes" / "Seconds"
 
-    // Labels
+    // Labels for the conditionally-shown input rows
     QLabel *serverLabel;
     QLabel *capacityLabel;
     QLabel *varianceLabel;
@@ -86,7 +95,21 @@ private:
     QPushButton *calculateButton;
     QPushButton *clearButton;
 
-    // Results
+    // Results grid layout, so changeModel() can add/remove metric
+    // cards without needing to know exact row/column positions.
+    QGridLayout *resultsGrid;
+
+    // Result metric cards (the bordered box widgets)
+    QFrame *rhoCard;
+    QFrame *p0Card;
+    QFrame *lqCard;
+    QFrame *lCard;
+    QFrame *wqCard;
+    QFrame *wCard;
+    QFrame *pBlockCard;
+    QFrame *throughputCard;
+
+    // Result values (the big number QLabel inside each card)
     QLabel *rhoValue;
     QLabel *p0Value;
     QLabel *lqValue;
@@ -96,13 +119,7 @@ private:
     QLabel *pBlockValue;
     QLabel *throughputValue;
 
-    // Result row labels (kept as members so they can be hidden/shown
-    // alongside their value labels, e.g. Pblock only matters for
-    // finite-capacity models)
-    QLabel *pBlockRowLabel;
-    QLabel *throughputRowLabel;
-
-    // Status/error message shown below the Calculate/Clear buttons
+    // Status/error banner shown below the Calculate/Clear buttons
     QLabel *statusLabel;
 };
 

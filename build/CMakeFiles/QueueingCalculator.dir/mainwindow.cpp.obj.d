@@ -424,6 +424,7 @@ CMakeFiles/QueueingCalculator.dir/mainwindow.cpp.obj: \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qboxlayout.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qgridlayout.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QFrame \
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/QGridLayout \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QGroupBox \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qgroupbox.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QHBoxLayout \
@@ -444,4 +445,5 @@ CMakeFiles/QueueingCalculator.dir/mainwindow.cpp.obj: \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qabstractbutton.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QVBoxLayout \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QWidget \
- C:/Qt/6.11.1/mingw_64/include/QtGui/QFont
+ C:/Qt/6.11.1/mingw_64/include/QtGui/QFont \
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/QSpacerItem
