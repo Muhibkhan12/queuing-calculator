@@ -6,6 +6,7 @@
 #include <QComboBox>
 #include <QFormLayout>
 #include <QFrame>
+#include <QGraphicsDropShadowEffect>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -16,6 +17,7 @@
 #include <QWidget>
 #include <QFont>
 #include <QSpacerItem>
+#include <QColor>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -39,32 +41,54 @@ MainWindow::~MainWindow()
 }
 
 // ==========================================================================
+// addSoftShadow
+// --------------------------------------------------------------------------
+// Small local helper that applies the soft, low-opacity elevation shadow
+// used throughout the reference design (cards, group boxes, buttons).
+// Not declared in the header since it's only used inside this file.
+// ==========================================================================
+static void addSoftShadow(QWidget *w, int blur = 22, int yOffset = 6, int alpha = 40)
+{
+    QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect(w);
+    shadow->setBlurRadius(blur);
+    shadow->setOffset(0, yOffset);
+    shadow->setColor(QColor(76, 81, 191, alpha));
+    w->setGraphicsEffect(shadow);
+}
+
+// ==========================================================================
 // createMetricCard
 // --------------------------------------------------------------------------
 // Builds one small bordered "card" widget used in the results grid: a
 // muted, uppercase-style title on top and a large bold value underneath.
-// Returns the QFrame (so changeModel() can show/hide the whole card) and
-// writes the value QLabel pointer into "valueLabelOut" so calculate()/
-// showError() can update the displayed number later.
+// "accent" sets a pastel-colored left border + tinted value color (mirrors
+// the colored icon-chip pattern in the reference design — purple/blue/
+// green/orange/pink/teal). Returns the QFrame (so changeModel() can show/
+// hide the whole card) and writes the value QLabel pointer into
+// "valueLabelOut" so calculate()/showError() can update the number later.
 // ==========================================================================
 QFrame *MainWindow::createMetricCard(const QString &title, const QString &initialValue,
-                                      QLabel *&valueLabelOut)
+                                      QLabel *&valueLabelOut, const QString &accent)
 {
     QFrame *card = new QFrame();
     card->setObjectName("metricCard");
+    card->setProperty("accent", accent);
 
     QVBoxLayout *cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(16, 14, 16, 14);
-    cardLayout->setSpacing(4);
+    cardLayout->setSpacing(6);
 
     QLabel *titleLabel = new QLabel(title);
     titleLabel->setObjectName("metricTitle");
 
     QLabel *valueLabel = new QLabel(initialValue);
     valueLabel->setObjectName("metricValue");
+    valueLabel->setProperty("accent", accent);
 
     cardLayout->addWidget(titleLabel);
     cardLayout->addWidget(valueLabel);
+
+    addSoftShadow(card, 18, 4, 22);
 
     valueLabelOut = valueLabel;
     return card;
@@ -72,30 +96,59 @@ QFrame *MainWindow::createMetricCard(const QString &title, const QString &initia
 
 void MainWindow::setupUI()
 {
-    resize(1000,820);
+    resize(1040, 860);
     setWindowTitle("Queueing Calculator");
 
     QWidget *central = new QWidget(this);
+    central->setObjectName("appBackground");
     setCentralWidget(central);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(central);
     mainLayout->setContentsMargins(28, 24, 28, 24);
-    mainLayout->setSpacing(16);
+    mainLayout->setSpacing(18);
 
     // ---------------- Header ----------------
+    QFrame *headerCard = new QFrame();
+    headerCard->setObjectName("headerCard");
+    QHBoxLayout *headerLayout = new QHBoxLayout(headerCard);
+    headerLayout->setContentsMargins(20, 16, 20, 16);
+    headerLayout->setSpacing(4);
+
+    QLabel *badge = new QLabel("Ξ");
+    badge->setObjectName("headerBadge");
+    badge->setFixedSize(48, 48);
+    badge->setAlignment(Qt::AlignCenter);
+
+    QVBoxLayout *titleBlock = new QVBoxLayout();
+    titleBlock->setSpacing(2);
+
     QLabel *title = new QLabel("Queueing Calculator");
     title->setObjectName("appTitle");
-    title->setAlignment(Qt::AlignCenter);
 
-    QLabel *subtitle = new QLabel("Analytical performance measures for classic queueing models ");
+    QLabel *subtitle = new QLabel("Analytical performance measures for classic queueing models");
     subtitle->setObjectName("appSubtitle");
-    subtitle->setAlignment(Qt::AlignCenter);
 
-    mainLayout->addWidget(title);
-    mainLayout->addWidget(subtitle);
+    titleBlock->addWidget(title);
+    titleBlock->addWidget(subtitle);
+
+    QLabel *tag = new QLabel("Analytical Calculator");
+    tag->setObjectName("headerTag");
+    tag->setAlignment(Qt::AlignCenter);
+
+    headerLayout->addWidget(badge);
+    headerLayout->addSpacing(12);
+    headerLayout->addLayout(titleBlock, 1);
+    headerLayout->addWidget(tag);
+
+    addSoftShadow(headerCard, 24, 8, 18);
+    mainLayout->addWidget(headerCard);
+
+    // ---------------- Section 01 label ----------------
+    mainLayout->addLayout(makeSectionHeader("01", "Model Parameters", "Configure your queueing model"));
 
     // ---------------- Input panel ----------------
-    QGroupBox *inputBox = new QGroupBox("Model & Parameters");
+    QGroupBox *inputBox = new QGroupBox();
+    inputBox->setObjectName("panelCard");
 
     QFormLayout *form = new QFormLayout();
     form->setHorizontalSpacing(16);
@@ -173,24 +226,43 @@ void MainWindow::setupUI()
     form->addRow(varianceLabel, varianceEdit);
 
     inputBox->setLayout(form);
+    addSoftShadow(inputBox, 20, 6, 16);
     mainLayout->addWidget(inputBox);
 
+    // ---------------- Info callout (stability rule) ----------------
+    QFrame *stabilityInfo = new QFrame();
+    stabilityInfo->setObjectName("infoBanner");
+    QVBoxLayout *stabilityLayout = new QVBoxLayout(stabilityInfo);
+    stabilityLayout->setContentsMargins(16, 12, 16, 12);
+    stabilityLayout->setSpacing(2);
+
+    QLabel *stabilityTitle = new QLabel("For System Stability: ρ &lt; 1 (λ &lt; μ)");
+    stabilityTitle->setObjectName("infoTitle");
+    QLabel *stabilityBody = new QLabel("Arrival rate must be less than service rate for the system to be stable.");
+    stabilityBody->setObjectName("infoBody");
+    stabilityBody->setWordWrap(true);
+
+    stabilityLayout->addWidget(stabilityTitle);
+    stabilityLayout->addWidget(stabilityBody);
+    mainLayout->addWidget(stabilityInfo);
+
     // ---------------- Buttons ----------------
-    calculateButton = new QPushButton("Calculate");
+    calculateButton = new QPushButton("⟶  Calculate");
     calculateButton->setObjectName("primaryButton");
     calculateButton->setCursor(Qt::PointingHandCursor);
-    calculateButton->setMinimumHeight(42);
+    calculateButton->setMinimumHeight(46);
 
-    clearButton = new QPushButton("Clear");
+    clearButton = new QPushButton("⟲  Clear All");
     clearButton->setObjectName("secondaryButton");
     clearButton->setCursor(Qt::PointingHandCursor);
-    clearButton->setMinimumHeight(42);
+    clearButton->setMinimumHeight(46);
 
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(12);
     buttonLayout->addWidget(calculateButton, 2);
     buttonLayout->addWidget(clearButton, 1);
 
+    addSoftShadow(calculateButton, 20, 8, 60);
     mainLayout->addLayout(buttonLayout);
 
     // ---------------- Status banner ----------------
@@ -200,21 +272,25 @@ void MainWindow::setupUI()
     statusLabel->hide();
     mainLayout->addWidget(statusLabel);
 
+    // ---------------- Section 02 label ----------------
+    mainLayout->addLayout(makeSectionHeader("02", "Results", "Performance measures"));
+
     // ---------------- Results panel ----------------
-    QGroupBox *resultBox = new QGroupBox("Results");
+    QGroupBox *resultBox = new QGroupBox();
+    resultBox->setObjectName("panelCard");
 
     resultsGrid = new QGridLayout();
     resultsGrid->setSpacing(14);
-    resultsGrid->setContentsMargins(4, 10, 4, 4);
+    resultsGrid->setContentsMargins(4, 6, 4, 4);
 
-    rhoCard        = createMetricCard("Utilization (ρ)", "0.0000", rhoValue);
-    p0Card         = createMetricCard("Prob. Empty (P₀)", "0.0000", p0Value);
-    lqCard         = createMetricCard("Avg. in Queue (Lq)", "0.0000", lqValue);
-    lCard          = createMetricCard("Avg. in System (L)", "0.0000", lValue);
-    wqCard         = createMetricCard("Avg. Wait (Wq, min)", "0.0000", wqValue);
-    wCard          = createMetricCard("Avg. Time in System (W, min)", "0.0000", wValue);
-    pBlockCard     = createMetricCard("Blocking Prob. (Pblock)", "N/A", pBlockValue);
-    throughputCard = createMetricCard("Throughput (per min)", "0.0000", throughputValue);
+    rhoCard        = createMetricCard("Utilization (ρ)", "0.0000", rhoValue, "purple");
+    p0Card         = createMetricCard("Prob. Empty (P₀)", "0.0000", p0Value, "blue");
+    lqCard         = createMetricCard("Avg. in Queue (Lq)", "0.0000", lqValue, "green");
+    lCard          = createMetricCard("Avg. in System (L)", "0.0000", lValue, "orange");
+    wqCard         = createMetricCard("Avg. Wait (Wq, min)", "0.0000", wqValue, "pink");
+    wCard          = createMetricCard("Avg. Time in System (W, min)", "0.0000", wValue, "purple");
+    pBlockCard     = createMetricCard("Blocking Prob. (Pblock)", "N/A", pBlockValue, "gray");
+    throughputCard = createMetricCard("Throughput (per min)", "0.0000", throughputValue, "teal");
 
     // 4 cards per row, 2 rows
     resultsGrid->addWidget(rhoCard,        0, 0);
@@ -231,69 +307,104 @@ void MainWindow::setupUI()
     }
 
     resultBox->setLayout(resultsGrid);
+    addSoftShadow(resultBox, 20, 6, 16);
     mainLayout->addWidget(resultBox);
 
-    // ---------------- Stylesheet (dark theme, refreshed) ----------------
+    // ---------------- Stylesheet (light indigo SaaS-dashboard theme) ----------------
     setStyleSheet(R"(
+        #appBackground {
+            background: #F7F7FC;
+        }
+
         QMainWindow, QWidget {
-            background: #14161a;
-            color: #E9EAEC;
+            color: #1F2430;
             font-family: "Segoe UI";
             font-size: 11pt;
         }
 
-        #appTitle {
-            font-size: 26pt;
-            font-weight: 700;
+        /* ---- Header ---- */
+        #headerCard {
+            background: #FFFFFF;
+            border: 1px solid #ECECF5;
+            border-radius: 18px;
+        }
+
+        #headerBadge {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                        stop:0 #6366F1, stop:1 #7C6CF6);
+            border-radius: 14px;
             color: #FFFFFF;
-            padding-top: 4px;
+            font-size: 20pt;
+            font-weight: 700;
+        }
+
+        #appTitle {
+            font-size: 20pt;
+            font-weight: 800;
+            color: #16181F;
         }
 
         #appSubtitle {
             font-size: 10pt;
-            color: #8A9099;
-            padding-bottom: 6px;
+            color: #8B8FA3;
         }
 
-        QGroupBox {
-            background: #1B1E24;
-            border: 1px solid #2A2D35;
-            border-radius: 14px;
-            margin-top: 14px;
+        #headerTag {
+            background: #EEEEFB;
+            color: #5B54E8;
+            border-radius: 16px;
+            padding: 8px 16px;
             font-weight: 600;
-            font-size: 11pt;
-            color: #C9CDD3;
+            font-size: 9.5pt;
+        }
+
+        /* ---- Section numbering ---- */
+        #sectionNumber {
+            background: #ECEAFE;
+            color: #5B54E8;
+            border-radius: 12px;
+            font-size: 14pt;
+            font-weight: 800;
+        }
+
+        #sectionTitle {
+            font-size: 14pt;
+            font-weight: 800;
+            color: #16181F;
+        }
+
+        #sectionSubtitle {
+            font-size: 9.5pt;
+            color: #8B8FA3;
+        }
+
+        /* ---- Panels ---- */
+        QGroupBox#panelCard {
+            background: #FFFFFF;
+            border: 1px solid #ECECF5;
+            border-radius: 18px;
             padding: 18px 14px 14px 14px;
         }
 
-        QGroupBox::title {
-            subcontrol-origin: margin;
-            left: 16px;
-            top: -4px;
-            padding: 0 8px;
-            color: #E9EAEC;
-            background: #14161a;
-        }
-
         QLabel {
-            color: #C9CDD3;
+            color: #4B4F5C;
         }
 
         QLineEdit, QComboBox {
-            background: #22252C;
-            border: 1px solid #33363F;
-            border-radius: 8px;
-            padding: 8px 10px;
-            color: #F2F3F5;
-            selection-background-color: #5B8DEF;
+            background: #FCFCFF;
+            border: 1px solid #E3E4EF;
+            border-radius: 10px;
+            padding: 9px 10px;
+            color: #1F2430;
+            selection-background-color: #6366F1;
         }
 
         QLineEdit:focus, QComboBox:focus {
-            border: 1px solid #5B8DEF;
+            border: 1px solid #6366F1;
         }
 
         QLineEdit::placeholder {
-            color: #5F6470;
+            color: #B0B3C2;
         }
 
         QComboBox::drop-down {
@@ -302,76 +413,143 @@ void MainWindow::setupUI()
         }
 
         QComboBox QAbstractItemView {
-            background: #22252C;
-            border: 1px solid #33363F;
-            selection-background-color: #5B8DEF;
+            background: #FFFFFF;
+            border: 1px solid #E3E4EF;
+            selection-background-color: #6366F1;
+            selection-color: #FFFFFF;
             outline: none;
-            color: #F2F3F5;
+            color: #1F2430;
         }
 
-        /* ---- Buttons ---- */
+        /* ---- Info banner (stability rule) ---- */
+        #infoBanner {
+            background: #EEF3FF;
+            border-radius: 14px;
+        }
+        #infoTitle {
+            color: #2E5CE6;
+            font-weight: 700;
+            font-size: 10.5pt;
+        }
+        #infoBody {
+            color: #4C6FD6;
+            font-size: 9.5pt;
+        }
+
+        /* ---- Buttons (pill-shaped) ---- */
         #primaryButton {
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                        stop:0 #5B8DEF, stop:1 #7C6CF6);
+                        stop:0 #6366F1, stop:1 #7C6CF6);
             color: #FFFFFF;
             border: none;
-            border-radius: 10px;
+            border-radius: 23px;
             font-weight: 700;
             font-size: 11pt;
         }
         #primaryButton:hover {
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                        stop:0 #6C9AFF, stop:1 #8C7DFF);
+                        stop:0 #7476F5, stop:1 #8C7DFF);
         }
         #primaryButton:pressed {
-            background: #4A78D6;
+            background: #5350D6;
         }
 
         #secondaryButton {
-            background: transparent;
-            color: #C9CDD3;
-            border: 1px solid #33363F;
-            border-radius: 10px;
+            background: #FFFFFF;
+            color: #4B4F5C;
+            border: 1px solid #E3E4EF;
+            border-radius: 23px;
             font-weight: 600;
             font-size: 11pt;
         }
         #secondaryButton:hover {
-            border: 1px solid #5B8DEF;
-            color: #FFFFFF;
+            border: 1px solid #6366F1;
+            color: #6366F1;
         }
         #secondaryButton:pressed {
-            background: #22252C;
+            background: #F7F7FC;
         }
 
         /* ---- Status banner (errors / unstable system) ---- */
         #statusBanner {
-            background: rgba(255, 107, 107, 0.12);
-            border-left: 4px solid #FF6B6B;
-            border-radius: 8px;
-            color: #FF8383;
+            background: #FDECEC;
+            border-radius: 12px;
+            color: #E4574C;
             font-weight: 600;
-            padding: 10px 14px;
+            padding: 12px 16px;
         }
 
         /* ---- Metric cards ---- */
         #metricCard {
-            background: #22252C;
-            border: 1px solid #2E323B;
-            border-radius: 12px;
+            background: #FFFFFF;
+            border: 1px solid #EDEDF5;
+            border-radius: 16px;
         }
+        #metricCard[accent="purple"] { border-left: 4px solid #8B7CF6; }
+        #metricCard[accent="blue"]   { border-left: 4px solid #4C8DF6; }
+        #metricCard[accent="green"]  { border-left: 4px solid #34C787; }
+        #metricCard[accent="orange"] { border-left: 4px solid #F5A84C; }
+        #metricCard[accent="pink"]   { border-left: 4px solid #F0679B; }
+        #metricCard[accent="teal"]   { border-left: 4px solid #2CC1BE; }
+        #metricCard[accent="gray"]   { border-left: 4px solid #A6A9B8; }
 
         #metricTitle {
-            color: #8A9099;
+            color: #8B8FA3;
             font-size: 9pt;
             font-weight: 600;
         }
 
         #metricValue {
-            color: #FFFFFF;
+            color: #16181F;
             font-size: 19pt;
-            font-weight: 700;
+            font-weight: 800;
         }
+        #metricValue[accent="purple"] { color: #6C5CE0; }
+        #metricValue[accent="blue"]   { color: #2F6FE0; }
+        #metricValue[accent="green"]  { color: #1FA76B; }
+        #metricValue[accent="orange"] { color: #E08F2C; }
+        #metricValue[accent="pink"]   { color: #E0447F; }
+        #metricValue[accent="teal"]   { color: #189B98; }
+        #metricValue[accent="gray"]   { color: #6B6F80; }
     )");
+}
+
+// ==========================================================================
+// makeSectionHeader
+// --------------------------------------------------------------------------
+// Builds the "01  Section Title / subtitle" row used above each major
+// panel, mirroring the numbered-section pattern from the reference design
+// (a rounded badge with the step number, next to a bold title and a
+// muted description). Returns a QHBoxLayout ready to be added to the
+// main vertical layout.
+// ==========================================================================
+QHBoxLayout *MainWindow::makeSectionHeader(const QString &number, const QString &sectionTitle,
+                                            const QString &sectionSubtitle)
+{
+    QHBoxLayout *row = new QHBoxLayout();
+    row->setSpacing(12);
+
+    QLabel *numberBadge = new QLabel(number);
+    numberBadge->setObjectName("sectionNumber");
+    numberBadge->setFixedSize(40, 40);
+    numberBadge->setAlignment(Qt::AlignCenter);
+
+    QVBoxLayout *textBlock = new QVBoxLayout();
+    textBlock->setSpacing(1);
+
+    QLabel *titleLbl = new QLabel(sectionTitle);
+    titleLbl->setObjectName("sectionTitle");
+
+    QLabel *subLbl = new QLabel(sectionSubtitle);
+    subLbl->setObjectName("sectionSubtitle");
+
+    textBlock->addWidget(titleLbl);
+    textBlock->addWidget(subLbl);
+
+    row->addWidget(numberBadge);
+    row->addLayout(textBlock, 1);
+
+    return row;
 }
 
 void MainWindow::changeModel()

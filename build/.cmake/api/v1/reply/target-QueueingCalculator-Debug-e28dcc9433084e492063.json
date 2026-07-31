@@ -277,11 +277,11 @@
 	"dependencies" : 
 	[
 		{
-			"backtrace" : 0,
-			"id" : "QueueingCalculator_autogen::@6890427a1f51a3e7e1df"
+			"id" : "QueueingCalculator_autogen_timestamp_deps::@6890427a1f51a3e7e1df"
 		},
 		{
-			"id" : "QueueingCalculator_autogen_timestamp_deps::@6890427a1f51a3e7e1df"
+			"backtrace" : 0,
+			"id" : "QueueingCalculator_autogen::@6890427a1f51a3e7e1df"
 		}
 	],
 	"id" : "QueueingCalculator::@6890427a1f51a3e7e1df",
