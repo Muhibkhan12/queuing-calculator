@@ -388,6 +388,8 @@ CMakeFiles/QueueingCalculator.dir/mainwindow.cpp.obj: \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qtabwidget.h \
  C:\Users\RA\Desktop\sef-project\utilities.h \
  C:\Users\RA\Desktop\sef-project\queue_models.h \
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/QAbstractButton \
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/qabstractbutton.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QApplication \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qapplication.h \
  C:/Qt/6.11.1/mingw_64/include/QtCore/qcoreapplication.h \
@@ -402,6 +404,8 @@ CMakeFiles/QueueingCalculator.dir/mainwindow.cpp.obj: \
  C:/Qt/6.11.1/mingw_64/include/QtGui/qinputmethod.h \
  C:/Qt/6.11.1/mingw_64/include/QtCore/qlocale.h \
  C:/Qt/6.11.1/mingw_64/include/QtGui/qguiapplication_platform.h \
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/QButtonGroup \
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/qbuttongroup.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QComboBox \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qcombobox.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qabstractitemdelegate.h \
@@ -424,8 +428,6 @@ CMakeFiles/QueueingCalculator.dir/mainwindow.cpp.obj: \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qboxlayout.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qgridlayout.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QFrame \
- C:/Qt/6.11.1/mingw_64/include/QtWidgets/QGraphicsDropShadowEffect \
- C:/Qt/6.11.1/mingw_64/include/QtWidgets/qgraphicseffect.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QGridLayout \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QGroupBox \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qgroupbox.h \
@@ -442,11 +444,13 @@ CMakeFiles/QueueingCalculator.dir/mainwindow.cpp.obj: \
  C:/Qt/6.11.1/mingw_64/include/QtGui/qtextformat.h \
  C:/Qt/6.11.1/mingw_64/include/QtGui/qpen.h \
  C:/Qt/6.11.1/mingw_64/include/QtGui/qtextoption.h \
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/QProgressBar \
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/qprogressbar.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QPushButton \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/qpushbutton.h \
- C:/Qt/6.11.1/mingw_64/include/QtWidgets/qabstractbutton.h \
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/QScrollArea \
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/qscrollarea.h \
+ C:/Qt/6.11.1/mingw_64/include/QtWidgets/qabstractscrollarea.h \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QVBoxLayout \
  C:/Qt/6.11.1/mingw_64/include/QtWidgets/QWidget \
- C:/Qt/6.11.1/mingw_64/include/QtGui/QFont \
- C:/Qt/6.11.1/mingw_64/include/QtWidgets/QSpacerItem \
- C:/Qt/6.11.1/mingw_64/include/QtGui/QColor
+ C:/Qt/6.11.1/mingw_64/include/QtGui/QFont

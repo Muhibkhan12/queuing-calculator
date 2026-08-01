@@ -2,22 +2,23 @@
 #include "queue_models.h"
 #include "utilities.h"
 
+#include <QAbstractButton>
 #include <QApplication>
+#include <QButtonGroup>
 #include <QComboBox>
 #include <QFormLayout>
 #include <QFrame>
-#include <QGraphicsDropShadowEffect>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QProgressBar>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QFont>
-#include <QSpacerItem>
-#include <QColor>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -30,7 +31,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(clearButton, &QPushButton::clicked,
             this, &MainWindow::clearFields);
 
-    connect(modelBox, &QComboBox::currentTextChanged,
+    connect(modelGroup, &QButtonGroup::buttonClicked,
             this, &MainWindow::changeModel);
 
     changeModel();
@@ -41,38 +42,61 @@ MainWindow::~MainWindow()
 }
 
 // ==========================================================================
-// addSoftShadow
+// createModelTile
 // --------------------------------------------------------------------------
-// Small local helper that applies the soft, low-opacity elevation shadow
-// used throughout the reference design (cards, group boxes, buttons).
-// Not declared in the header since it's only used inside this file.
+// Builds one clickable, checkable tile button for the model picker grid.
+// Registers it in modelGroup (an exclusive QButtonGroup) so only one
+// tile can be selected at a time, like a set of radio buttons.
 // ==========================================================================
-static void addSoftShadow(QWidget *w, int blur = 22, int yOffset = 6, int alpha = 40)
+QPushButton *MainWindow::createModelTile(const QString &name, const QString &shortLabel,
+                                          const QString &modelValue)
 {
-    QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect(w);
-    shadow->setBlurRadius(blur);
-    shadow->setOffset(0, yOffset);
-    shadow->setColor(QColor(76, 81, 191, alpha));
-    w->setGraphicsEffect(shadow);
+    QPushButton *tile = new QPushButton();
+    tile->setObjectName("modelTile");
+    tile->setCheckable(true);
+    tile->setCursor(Qt::PointingHandCursor);
+    tile->setProperty("modelValue", modelValue);
+    tile->setMinimumHeight(64);
+
+    QVBoxLayout *tileLayout = new QVBoxLayout(tile);
+    tileLayout->setContentsMargins(10, 10, 10, 10);
+    tileLayout->setSpacing(2);
+    tileLayout->setAlignment(Qt::AlignCenter);
+
+    QLabel *nameLabel = new QLabel(name);
+    nameLabel->setObjectName("tileName");
+    nameLabel->setAlignment(Qt::AlignCenter);
+
+    QLabel *subLabel = new QLabel(shortLabel);
+    subLabel->setObjectName("tileSub");
+    subLabel->setAlignment(Qt::AlignCenter);
+
+    tileLayout->addWidget(nameLabel);
+    tileLayout->addWidget(subLabel);
+
+    modelGroup->addButton(tile);
+    return tile;
 }
 
 // ==========================================================================
 // createMetricCard
 // --------------------------------------------------------------------------
-// Builds one small bordered "card" widget used in the results grid: a
-// muted, uppercase-style title on top and a large bold value underneath.
-// "accent" sets a pastel-colored left border + tinted value color (mirrors
-// the colored icon-chip pattern in the reference design — purple/blue/
-// green/orange/pink/teal). Returns the QFrame (so changeModel() can show/
-// hide the whole card) and writes the value QLabel pointer into
-// "valueLabelOut" so calculate()/showError() can update the number later.
+// Builds one result card: a colored left-border accent (no icon glyph),
+// a title, a large bold value, and a small grey caption. Returns the
+// card frame (for show/hide control) and writes the value QLabel
+// pointer into "valueLabelOut" so calculate()/showError() can update
+// the displayed number later.
 // ==========================================================================
-QFrame *MainWindow::createMetricCard(const QString &title, const QString &initialValue,
-                                      QLabel *&valueLabelOut, const QString &accent)
+QFrame *MainWindow::createMetricCard(const QString &accentColor, const QString &title, const QString &caption,
+                                      const QString &initialValue, QLabel *&valueLabelOut,
+                                      bool withProgress, QProgressBar *&progressBarOut)
 {
     QFrame *card = new QFrame();
     card->setObjectName("metricCard");
-    card->setProperty("accent", accent);
+    card->setStyleSheet(QString(
+        "QFrame#metricCard { background: #FFFFFF; border: 1px solid #E5E7EF; "
+        "border-left: 4px solid %1; border-radius: 12px; }"
+    ).arg(accentColor));
 
     QVBoxLayout *cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(16, 14, 16, 14);
@@ -83,216 +107,435 @@ QFrame *MainWindow::createMetricCard(const QString &title, const QString &initia
 
     QLabel *valueLabel = new QLabel(initialValue);
     valueLabel->setObjectName("metricValue");
-    valueLabel->setProperty("accent", accent);
+
+    QLabel *captionLabel = new QLabel(caption);
+    captionLabel->setObjectName("metricCaption");
 
     cardLayout->addWidget(titleLabel);
     cardLayout->addWidget(valueLabel);
 
-    addSoftShadow(card, 18, 4, 22);
+    if (withProgress) {
+        QProgressBar *bar = new QProgressBar();
+        bar->setObjectName("metricProgress");
+        bar->setRange(0, 100);
+        bar->setValue(0);
+        bar->setTextVisible(false);
+        bar->setFixedHeight(6);
+        cardLayout->addWidget(bar);
+        progressBarOut = bar;
+    } else {
+        progressBarOut = nullptr;
+    }
+
+    cardLayout->addWidget(captionLabel);
 
     valueLabelOut = valueLabel;
     return card;
 }
 
+// ==========================================================================
+// currentModel
+// ==========================================================================
+QString MainWindow::currentModel() const
+{
+    QAbstractButton *checked = modelGroup->checkedButton();
+    if (checked) {
+        return checked->property("modelValue").toString();
+    }
+    return "M/M/1";
+}
+
+// ==========================================================================
+// modelDescriptionFor
+// ==========================================================================
+QString MainWindow::modelDescriptionFor(const QString &model) const
+{
+    if (model == "M/M/1")
+        return "•  Poisson arrivals\n•  Exponential service times\n•  Single server\n•  Infinite capacity, FCFS discipline";
+    if (model == "M/M/s")
+        return "•  Poisson arrivals\n•  Exponential service times\n•  s parallel servers\n•  Infinite capacity, FCFS discipline";
+    if (model == "M/M/∞")
+        return "•  Poisson arrivals\n•  Exponential service times\n•  Infinite servers\n•  Every arrival served immediately";
+    if (model == "M/M/1/K")
+        return "•  Poisson arrivals\n•  Exponential service times\n•  Single server\n•  Finite capacity K — blocks when full";
+    if (model == "M/M/s/K")
+        return "•  Poisson arrivals\n•  Exponential service times\n•  s servers\n•  Finite capacity K — blocks when full";
+    if (model == "M/G/1")
+        return "•  Poisson arrivals\n•  General service time distribution\n•  Single server\n•  Solved via Pollaczek–Khinchine formula";
+    return "";
+}
+
+// ==========================================================================
+// stabilityTitleFor / stabilityDetailFor
+// ==========================================================================
+QString MainWindow::stabilityTitleFor(const QString &model) const
+{
+    if (model == "M/M/1" || model == "M/G/1")
+        return "For System Stability: ρ < 1  (λ < μ)";
+    if (model == "M/M/s")
+        return "For System Stability: ρ < 1  (λ < s × μ)";
+    if (model == "M/M/∞")
+        return "This system is always stable";
+    if (model == "M/M/1/K" || model == "M/M/s/K")
+        return "This system is always stable";
+    return "";
+}
+
+QString MainWindow::stabilityDetailFor(const QString &model) const
+{
+    if (model == "M/M/1" || model == "M/G/1")
+        return "Arrival rate must be less than service rate for the system to be stable.";
+    if (model == "M/M/s")
+        return "Total arrival rate must be less than the combined capacity of all servers.";
+    if (model == "M/M/∞")
+        return "With infinite servers, every arrival is served immediately — no queue can ever form.";
+    if (model == "M/M/1/K" || model == "M/M/s/K")
+        return "The finite capacity K bounds the queue, so the system is stable regardless of λ vs μ.";
+    return "";
+}
+
 void MainWindow::setupUI()
 {
-    resize(1040, 860);
+    resize(1080, 900);
+    setMinimumSize(720, 560);
     setWindowTitle("Queueing Calculator");
 
-    QWidget *central = new QWidget(this);
-    central->setObjectName("appBackground");
-    setCentralWidget(central);
+    // ---- Scrollable container ----
+    // All page content lives inside a QScrollArea so that on smaller
+    // windows / lower-resolution screens the content scrolls instead of
+    // being clipped or pushed off-screen. setWidgetResizable(true) lets
+    // the inner content widget grow to fill the scroll area's width,
+    // so cards/grids still stretch to use the available space.
+    QScrollArea *scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    setCentralWidget(scrollArea);
 
-    QVBoxLayout *mainLayout = new QVBoxLayout(central);
-    mainLayout->setContentsMargins(28, 24, 28, 24);
-    mainLayout->setSpacing(18);
+    QWidget *central = new QWidget();
+    scrollArea->setWidget(central);
 
-    // ---------------- Header ----------------
-    QFrame *headerCard = new QFrame();
-    headerCard->setObjectName("headerCard");
-    QHBoxLayout *headerLayout = new QHBoxLayout(headerCard);
+    QVBoxLayout *pageLayout = new QVBoxLayout(central);
+    pageLayout->setContentsMargins(24, 20, 24, 20);
+    pageLayout->setSpacing(16);
+
+    // ================= Header bar =================
+    QFrame *headerBar = new QFrame();
+    headerBar->setObjectName("headerBar");
+    QHBoxLayout *headerLayout = new QHBoxLayout(headerBar);
     headerLayout->setContentsMargins(20, 16, 20, 16);
-    headerLayout->setSpacing(4);
+    headerLayout->setSpacing(14);
 
-    QLabel *badge = new QLabel("Ξ");
-    badge->setObjectName("headerBadge");
-    badge->setFixedSize(48, 48);
-    badge->setAlignment(Qt::AlignCenter);
+    QLabel *headerIcon = new QLabel("QC");
+    headerIcon->setObjectName("headerIconText");
+    headerIcon->setFixedSize(44, 44);
+    headerIcon->setAlignment(Qt::AlignCenter);
 
-    QVBoxLayout *titleBlock = new QVBoxLayout();
-    titleBlock->setSpacing(2);
+    QVBoxLayout *headerText = new QVBoxLayout();
+    headerText->setSpacing(2);
+    QLabel *appTitle = new QLabel("Queueing Calculator");
+    appTitle->setObjectName("appTitle");
+    QLabel *appSubtitle = new QLabel("Analyze classical queueing models");
+    appSubtitle->setObjectName("appSubtitle");
+    headerText->addWidget(appTitle);
+    headerText->addWidget(appSubtitle);
 
-    QLabel *title = new QLabel("Queueing Calculator");
-    title->setObjectName("appTitle");
+    QLabel *calcBadge = new QLabel("Analytical Calculator");
+    calcBadge->setObjectName("pillBadge");
 
-    QLabel *subtitle = new QLabel("Analytical performance measures for classic queueing models");
-    subtitle->setObjectName("appSubtitle");
+    headerLayout->addWidget(headerIcon);
+    headerLayout->addLayout(headerText);
+    headerLayout->addStretch();
+    headerLayout->addWidget(calcBadge);
 
-    titleBlock->addWidget(title);
-    titleBlock->addWidget(subtitle);
+    pageLayout->addWidget(headerBar);
 
-    QLabel *tag = new QLabel("Analytical Calculator");
-    tag->setObjectName("headerTag");
-    tag->setAlignment(Qt::AlignCenter);
+    // ================= Section 01: Model Parameters =================
+    QHBoxLayout *section1Header = new QHBoxLayout();
+    section1Header->setSpacing(12);
+    QLabel *badge1 = new QLabel("01");
+    badge1->setObjectName("sectionBadge");
+    badge1->setFixedSize(38, 32);
+    badge1->setAlignment(Qt::AlignCenter);
 
-    headerLayout->addWidget(badge);
-    headerLayout->addSpacing(12);
-    headerLayout->addLayout(titleBlock, 1);
-    headerLayout->addWidget(tag);
+    QVBoxLayout *section1Text = new QVBoxLayout();
+    section1Text->setSpacing(1);
+    QLabel *section1Title = new QLabel("Model Parameters");
+    section1Title->setObjectName("sectionTitle");
+    QLabel *section1Sub = new QLabel("Configure your queueing model");
+    section1Sub->setObjectName("sectionSubtitle");
+    section1Text->addWidget(section1Title);
+    section1Text->addWidget(section1Sub);
 
-    addSoftShadow(headerCard, 24, 8, 18);
-    mainLayout->addWidget(headerCard);
+    QLabel *analyticalBadge1 = new QLabel("All values are analytical");
+    analyticalBadge1->setObjectName("pillBadge");
 
-    // ---------------- Section 01 label ----------------
-    mainLayout->addLayout(makeSectionHeader("01", "Model Parameters", "Configure your queueing model"));
+    section1Header->addWidget(badge1);
+    section1Header->addLayout(section1Text);
+    section1Header->addStretch();
+    section1Header->addWidget(analyticalBadge1);
+    pageLayout->addLayout(section1Header);
 
-    // ---------------- Input panel ----------------
-    QGroupBox *inputBox = new QGroupBox();
-    inputBox->setObjectName("panelCard");
+    // ---- Two side-by-side cards: Queue Model | Arrival & Service ----
+    QHBoxLayout *cardsRow = new QHBoxLayout();
+    cardsRow->setSpacing(18);
 
-    QFormLayout *form = new QFormLayout();
-    form->setHorizontalSpacing(16);
-    form->setVerticalSpacing(14);
-    form->setLabelAlignment(Qt::AlignLeft);
+    // ---- Left card: Queue Model (tile grid) ----
+    QFrame *modelCard = new QFrame();
+    modelCard->setObjectName("panelCard");
+    QVBoxLayout *modelCardLayout = new QVBoxLayout(modelCard);
+    modelCardLayout->setContentsMargins(20, 18, 20, 18);
+    modelCardLayout->setSpacing(10);
 
-    modelBox = new QComboBox();
-    modelBox->addItems({
-        "M/M/1",
-        "M/M/s",
-        "M/M/∞",
-        "M/M/1/K",
-        "M/M/s/K",
-        "M/G/1"
-    });
+    QLabel *modelCardTitle = new QLabel("Queue Model");
+    modelCardTitle->setObjectName("cardTitle");
+    QLabel *modelCardSub = new QLabel("Choose from classic queueing models");
+    modelCardSub->setObjectName("cardSubtitle");
+    modelCardLayout->addWidget(modelCardTitle);
+    modelCardLayout->addWidget(modelCardSub);
+
+    modelGroup = new QButtonGroup(this);
+    modelGroup->setExclusive(true);
+
+    QGridLayout *tileGrid = new QGridLayout();
+    tileGrid->setSpacing(10);
+
+    QPushButton *tile1 = createModelTile("M/M/1", "Single Server", "M/M/1");
+    QPushButton *tile2 = createModelTile("M/M/s", "Multiple Servers", "M/M/s");
+    QPushButton *tile3 = createModelTile("M/M/∞", "Infinite Servers", "M/M/∞");
+    QPushButton *tile4 = createModelTile("M/M/1/K", "Finite Capacity", "M/M/1/K");
+    QPushButton *tile5 = createModelTile("M/M/s/K", "Multi + Finite", "M/M/s/K");
+    QPushButton *tile6 = createModelTile("M/G/1", "General Service", "M/G/1");
+
+    tileGrid->addWidget(tile1, 0, 0);
+    tileGrid->addWidget(tile2, 0, 1);
+    tileGrid->addWidget(tile3, 0, 2);
+    tileGrid->addWidget(tile4, 1, 0);
+    tileGrid->addWidget(tile5, 1, 1);
+    tileGrid->addWidget(tile6, 1, 2);
+
+    tile1->setChecked(true); // default selection
+
+    modelCardLayout->addLayout(tileGrid);
+
+    QFrame *descBox = new QFrame();
+    descBox->setObjectName("infoBoxLight");
+    QHBoxLayout *descLayout = new QHBoxLayout(descBox);
+    descLayout->setContentsMargins(14, 12, 14, 12);
+    descLayout->setSpacing(12);
+    modelDescriptionLabel = new QLabel("");
+    modelDescriptionLabel->setObjectName("descText");
+    modelDescriptionLabel->setWordWrap(true);
+    descLayout->addWidget(modelDescriptionLabel, 1);
+
+    modelCardLayout->addWidget(descBox);
+    modelCardLayout->addStretch();
+
+    // ---- Right card: Arrival Rate & Service Rate ----
+    QFrame *ratesCard = new QFrame();
+    ratesCard->setObjectName("panelCard");
+    QVBoxLayout *ratesCardLayout = new QVBoxLayout(ratesCard);
+    ratesCardLayout->setContentsMargins(20, 18, 20, 18);
+    ratesCardLayout->setSpacing(14);
+
+    // -- Arrival Rate row --
+    QHBoxLayout *lambdaLabelRow = new QHBoxLayout();
+    lambdaLabelRow->setSpacing(10);
+    QLabel *lambdaLabel = new QLabel("Arrival Rate (λ)");
+    lambdaLabel->setObjectName("fieldLabel");
+    lambdaLabelRow->addWidget(lambdaLabel);
+    lambdaLabelRow->addStretch();
 
     lambdaEdit = new QLineEdit();
     lambdaEdit->setPlaceholderText("e.g. 5");
-    muEdit = new QLineEdit();
-    muEdit->setPlaceholderText("e.g. 8");
-    serverEdit = new QLineEdit();
-    serverEdit->setPlaceholderText("e.g. 3");
-    capacityEdit = new QLineEdit();
-    capacityEdit->setPlaceholderText("e.g. 10");
-    varianceEdit = new QLineEdit();
-    varianceEdit->setPlaceholderText("e.g. 0.02");
+    lambdaEdit->setMinimumHeight(38);
 
-    // ---- Time-conversion controls ----
-    // Each of lambda and mu can independently be entered as a "Rate"
-    // (events per unit time) or a "Mean Time" (average time per event),
-    // and in whichever time unit is convenient (Hours/Minutes/Seconds).
-    // convertToRatePerMinute() in utilities.cpp standardizes both to a
-    // common "events per minute" rate before any formula runs.
     lambdaModeBox = new QComboBox();
-    lambdaModeBox->addItems({"Rate", "Mean Time"});
-    lambdaModeBox->setFixedWidth(115);
+    lambdaModeBox->setObjectName("plainDropdown");
+    lambdaModeBox->addItem("Rate");
+    lambdaModeBox->addItem("Mean Time");
 
     lambdaUnitBox = new QComboBox();
-    lambdaUnitBox->addItems({"Hours", "Minutes", "Seconds"});
-    lambdaUnitBox->setFixedWidth(100);
+    lambdaUnitBox->setObjectName("plainDropdown");
+    lambdaUnitBox->addItem("per Hour",   static_cast<int>(TimeUnit::Hours));
+    lambdaUnitBox->addItem("per Minute", static_cast<int>(TimeUnit::Minutes));
+    lambdaUnitBox->addItem("per Second", static_cast<int>(TimeUnit::Seconds));
+
+    QHBoxLayout *lambdaInputRow = new QHBoxLayout();
+    lambdaInputRow->setSpacing(8);
+    lambdaInputRow->addWidget(lambdaEdit, 2);
+    lambdaInputRow->addWidget(lambdaModeBox, 1);
+    lambdaInputRow->addWidget(lambdaUnitBox, 1);
+
+    // -- Service Rate row --
+    QHBoxLayout *muLabelRow = new QHBoxLayout();
+    muLabelRow->setSpacing(10);
+    QLabel *muLabel = new QLabel("Service Rate (μ)");
+    muLabel->setObjectName("fieldLabel");
+    muLabelRow->addWidget(muLabel);
+    muLabelRow->addStretch();
+
+    muEdit = new QLineEdit();
+    muEdit->setPlaceholderText("e.g. 8");
+    muEdit->setMinimumHeight(38);
 
     muModeBox = new QComboBox();
-    muModeBox->addItems({"Rate", "Mean Time"});
-    muModeBox->setFixedWidth(115);
+    muModeBox->setObjectName("plainDropdown");
+    muModeBox->addItem("Rate");
+    muModeBox->addItem("Mean Time");
 
     muUnitBox = new QComboBox();
-    muUnitBox->addItems({"Hours", "Minutes", "Seconds"});
-    muUnitBox->setFixedWidth(100);
+    muUnitBox->setObjectName("plainDropdown");
+    muUnitBox->addItem("per Hour",   static_cast<int>(TimeUnit::Hours));
+    muUnitBox->addItem("per Minute", static_cast<int>(TimeUnit::Minutes));
+    muUnitBox->addItem("per Second", static_cast<int>(TimeUnit::Seconds));
 
-    serverLabel = new QLabel("Servers (s)");
-    capacityLabel = new QLabel("Capacity (K)");
-    varianceLabel = new QLabel("Variance (σ²)");
+    QHBoxLayout *muInputRow = new QHBoxLayout();
+    muInputRow->setSpacing(8);
+    muInputRow->addWidget(muEdit, 2);
+    muInputRow->addWidget(muModeBox, 1);
+    muInputRow->addWidget(muUnitBox, 1);
 
-    form->addRow("Queue Model", modelBox);
+    // -- Extra fields (Servers / Capacity / Variance), shown per model --
+    serverLabel = new QLabel("Number of Servers (s)");
+    serverLabel->setObjectName("fieldLabel");
+    serverEdit = new QLineEdit();
+    serverEdit->setPlaceholderText("e.g. 3");
+    serverEdit->setMinimumHeight(38);
 
-    // Arrival rate row, with its mode/unit dropdowns placed right next
-    // to the input box so it's clear they modify how λ is interpreted.
-    QHBoxLayout *lambdaRow = new QHBoxLayout();
-    lambdaRow->setSpacing(8);
-    lambdaRow->addWidget(lambdaEdit, 1);
-    lambdaRow->addWidget(lambdaModeBox);
-    lambdaRow->addWidget(lambdaUnitBox);
-    form->addRow("Arrival Rate (λ)", lambdaRow);
+    capacityLabel = new QLabel("System Capacity (K)");
+    capacityLabel->setObjectName("fieldLabel");
+    capacityEdit = new QLineEdit();
+    capacityEdit->setPlaceholderText("e.g. 10");
+    capacityEdit->setMinimumHeight(38);
 
-    // Service rate row, same idea.
-    QHBoxLayout *muRow = new QHBoxLayout();
-    muRow->setSpacing(8);
-    muRow->addWidget(muEdit, 1);
-    muRow->addWidget(muModeBox);
-    muRow->addWidget(muUnitBox);
-    form->addRow("Service Rate (μ)", muRow);
+    varianceLabel = new QLabel("Service Time Variance (σ²)");
+    varianceLabel->setObjectName("fieldLabel");
+    varianceEdit = new QLineEdit();
+    varianceEdit->setPlaceholderText("e.g. 0.02");
+    varianceEdit->setMinimumHeight(38);
 
-    form->addRow(serverLabel, serverEdit);
-    form->addRow(capacityLabel, capacityEdit);
-    form->addRow(varianceLabel, varianceEdit);
+    ratesCardLayout->addLayout(lambdaLabelRow);
+    ratesCardLayout->addLayout(lambdaInputRow);
+    ratesCardLayout->addLayout(muLabelRow);
+    ratesCardLayout->addLayout(muInputRow);
+    ratesCardLayout->addWidget(serverLabel);
+    ratesCardLayout->addWidget(serverEdit);
+    ratesCardLayout->addWidget(capacityLabel);
+    ratesCardLayout->addWidget(capacityEdit);
+    ratesCardLayout->addWidget(varianceLabel);
+    ratesCardLayout->addWidget(varianceEdit);
+    ratesCardLayout->addStretch();
 
-    inputBox->setLayout(form);
-    addSoftShadow(inputBox, 20, 6, 16);
-    mainLayout->addWidget(inputBox);
+    cardsRow->addWidget(modelCard, 1);
+    cardsRow->addWidget(ratesCard, 1);
+    pageLayout->addLayout(cardsRow);
 
-    // ---------------- Info callout (stability rule) ----------------
-    QFrame *stabilityInfo = new QFrame();
-    stabilityInfo->setObjectName("infoBanner");
-    QVBoxLayout *stabilityLayout = new QVBoxLayout(stabilityInfo);
-    stabilityLayout->setContentsMargins(16, 12, 16, 12);
-    stabilityLayout->setSpacing(2);
+    // ---- Stability info banner (shield icon + bold title + detail) ----
+    QFrame *stabilityBanner = new QFrame();
+    stabilityBanner->setObjectName("infoBoxBlue");
+    QHBoxLayout *stabilityOuter = new QHBoxLayout(stabilityBanner);
+    stabilityOuter->setContentsMargins(16, 12, 16, 12);
+    stabilityOuter->setSpacing(12);
+    QVBoxLayout *stabilityTextLayout = new QVBoxLayout();
+    stabilityTextLayout->setSpacing(2);
+    stabilityTitleLabel = new QLabel("");
+    stabilityTitleLabel->setObjectName("stabilityTitle");
+    stabilityDetailLabel = new QLabel("");
+    stabilityDetailLabel->setObjectName("stabilityDetail");
+    stabilityDetailLabel->setWordWrap(true);
+    stabilityTextLayout->addWidget(stabilityTitleLabel);
+    stabilityTextLayout->addWidget(stabilityDetailLabel);
+    stabilityOuter->addLayout(stabilityTextLayout, 1);
+    pageLayout->addWidget(stabilityBanner);
 
-    QLabel *stabilityTitle = new QLabel("For System Stability: ρ &lt; 1 (λ &lt; μ)");
-    stabilityTitle->setObjectName("infoTitle");
-    QLabel *stabilityBody = new QLabel("Arrival rate must be less than service rate for the system to be stable.");
-    stabilityBody->setObjectName("infoBody");
-    stabilityBody->setWordWrap(true);
-
-    stabilityLayout->addWidget(stabilityTitle);
-    stabilityLayout->addWidget(stabilityBody);
-    mainLayout->addWidget(stabilityInfo);
-
-    // ---------------- Buttons ----------------
-    calculateButton = new QPushButton("⟶  Calculate");
+    // ---- Buttons ----
+    calculateButton = new QPushButton("Calculate                                        →");
     calculateButton->setObjectName("primaryButton");
     calculateButton->setCursor(Qt::PointingHandCursor);
-    calculateButton->setMinimumHeight(46);
+    calculateButton->setMinimumHeight(48);
 
-    clearButton = new QPushButton("⟲  Clear All");
+    clearButton = new QPushButton("Clear All                                        →");
     clearButton->setObjectName("secondaryButton");
     clearButton->setCursor(Qt::PointingHandCursor);
-    clearButton->setMinimumHeight(46);
+    clearButton->setMinimumHeight(48);
 
     QHBoxLayout *buttonLayout = new QHBoxLayout();
-    buttonLayout->setSpacing(12);
-    buttonLayout->addWidget(calculateButton, 2);
+    buttonLayout->setSpacing(14);
+    buttonLayout->addWidget(calculateButton, 1);
     buttonLayout->addWidget(clearButton, 1);
+    pageLayout->addLayout(buttonLayout);
 
-    addSoftShadow(calculateButton, 20, 8, 60);
-    mainLayout->addLayout(buttonLayout);
-
-    // ---------------- Status banner ----------------
+    // ---- Status / error banner (pill-shaped, red) ----
     statusLabel = new QLabel("");
     statusLabel->setObjectName("statusBanner");
     statusLabel->setWordWrap(true);
     statusLabel->hide();
-    mainLayout->addWidget(statusLabel);
+    pageLayout->addWidget(statusLabel);
 
-    // ---------------- Section 02 label ----------------
-    mainLayout->addLayout(makeSectionHeader("02", "Results", "Performance measures"));
+    // ================= Section 02: Results =================
+    QHBoxLayout *section2Header = new QHBoxLayout();
+    section2Header->setSpacing(12);
+    QLabel *badge2 = new QLabel("02");
+    badge2->setObjectName("sectionBadge");
+    badge2->setFixedSize(38, 32);
+    badge2->setAlignment(Qt::AlignCenter);
 
-    // ---------------- Results panel ----------------
-    QGroupBox *resultBox = new QGroupBox();
-    resultBox->setObjectName("panelCard");
+    QVBoxLayout *section2Text = new QVBoxLayout();
+    section2Text->setSpacing(1);
+    QLabel *section2Title = new QLabel("Results");
+    section2Title->setObjectName("sectionTitle");
+    QLabel *section2Sub = new QLabel("Performance measures");
+    section2Sub->setObjectName("sectionSubtitle");
+    section2Text->addWidget(section2Title);
+    section2Text->addWidget(section2Sub);
+
+    QLabel *analyticalBadge2 = new QLabel("All values are analytical");
+    analyticalBadge2->setObjectName("pillBadge");
+
+    section2Header->addWidget(badge2);
+    section2Header->addLayout(section2Text);
+    section2Header->addStretch();
+    section2Header->addWidget(analyticalBadge2);
+    pageLayout->addLayout(section2Header);
+
+    // ---- Results panel card (wraps mini-header + metric grid) ----
+    QFrame *resultsPanel = new QFrame();
+    resultsPanel->setObjectName("panelCard");
+    QVBoxLayout *resultsPanelLayout = new QVBoxLayout(resultsPanel);
+    resultsPanelLayout->setContentsMargins(20, 18, 20, 18);
+    resultsPanelLayout->setSpacing(14);
+
+    QHBoxLayout *perfHeader = new QHBoxLayout();
+    perfHeader->setSpacing(12);
+    QVBoxLayout *perfText = new QVBoxLayout();
+    perfText->setSpacing(1);
+    QLabel *perfTitle = new QLabel("Performance Measures");
+    perfTitle->setObjectName("cardTitle");
+    QLabel *perfSub = new QLabel("Calculated performance metrics for the selected model");
+    perfSub->setObjectName("cardSubtitle");
+    perfText->addWidget(perfTitle);
+    perfText->addWidget(perfSub);
+    perfHeader->addLayout(perfText);
+    perfHeader->addStretch();
+
+    resultsPanelLayout->addLayout(perfHeader);
 
     resultsGrid = new QGridLayout();
-    resultsGrid->setSpacing(14);
-    resultsGrid->setContentsMargins(4, 6, 4, 4);
+    resultsGrid->setSpacing(16);
 
-    rhoCard        = createMetricCard("Utilization (ρ)", "0.0000", rhoValue, "purple");
-    p0Card         = createMetricCard("Prob. Empty (P₀)", "0.0000", p0Value, "blue");
-    lqCard         = createMetricCard("Avg. in Queue (Lq)", "0.0000", lqValue, "green");
-    lCard          = createMetricCard("Avg. in System (L)", "0.0000", lValue, "orange");
-    wqCard         = createMetricCard("Avg. Wait (Wq, min)", "0.0000", wqValue, "pink");
-    wCard          = createMetricCard("Avg. Time in System (W, min)", "0.0000", wValue, "purple");
-    pBlockCard     = createMetricCard("Blocking Prob. (Pblock)", "N/A", pBlockValue, "gray");
-    throughputCard = createMetricCard("Throughput (per min)", "0.0000", throughputValue, "teal");
+    QProgressBar *unusedBar = nullptr;
 
-    // 4 cards per row, 2 rows
+    rhoCard        = createMetricCard("#5B4FE9", "Utilization (ρ)",         "(λ / μ)",       "0.0000", rhoValue, true, rhoProgress);
+    p0Card         = createMetricCard("#2F6FED", "Prob. Empty (P₀)",        "(Probability)", "0.0000", p0Value, false, unusedBar);
+    lqCard         = createMetricCard("#12A594", "Avg. in Queue (Lq)",      "(Customers)",   "0.0000", lqValue, false, unusedBar);
+    lCard          = createMetricCard("#E0447B", "Avg. in System (L)",      "(Customers)",   "0.0000", lValue, false, unusedBar);
+    wqCard         = createMetricCard("#E08E1D", "Avg. Wait (Wq)",          "(Minutes)",     "0.0000", wqValue, false, unusedBar);
+    wCard          = createMetricCard("#1FA34D", "Avg. Time in System (W)", "(Minutes)",     "0.0000", wValue, false, unusedBar);
+    pBlockCard     = createMetricCard("#5B4FE9", "Blocking Prob. (Pblock)", "(Probability)", "N/A",     pBlockValue, false, unusedBar);
+    throughputCard = createMetricCard("#12A594", "Throughput (λeff)",       "(Per Minute)",  "0.0000", throughputValue, true, throughputProgress);
+
     resultsGrid->addWidget(rhoCard,        0, 0);
     resultsGrid->addWidget(p0Card,         0, 1);
     resultsGrid->addWidget(lqCard,         0, 2);
@@ -306,250 +549,259 @@ void MainWindow::setupUI()
         resultsGrid->setColumnStretch(col, 1);
     }
 
-    resultBox->setLayout(resultsGrid);
-    addSoftShadow(resultBox, 20, 6, 16);
-    mainLayout->addWidget(resultBox);
+    resultsPanelLayout->addLayout(resultsGrid);
+    pageLayout->addWidget(resultsPanel);
 
-    // ---------------- Stylesheet (light indigo SaaS-dashboard theme) ----------------
+    // ---- Footer tip bar ----
+    QFrame *tipBar = new QFrame();
+    tipBar->setObjectName("tipBar");
+    QHBoxLayout *tipLayout = new QHBoxLayout(tipBar);
+    tipLayout->setContentsMargins(16, 12, 16, 12);
+    tipLayout->setSpacing(8);
+    tipLayout->setAlignment(Qt::AlignCenter);
+    QLabel *tipText = new QLabel("Tip: results update instantly — try switching models or time units to compare scenarios.");
+    tipText->setObjectName("tipText");
+    tipLayout->addStretch();
+    tipLayout->addWidget(tipText);
+    tipLayout->addStretch();
+    pageLayout->addWidget(tipBar);
+
+    // ================= Stylesheet (light theme) =================
     setStyleSheet(R"(
-        #appBackground {
-            background: #F7F7FC;
-        }
-
         QMainWindow, QWidget {
+            background: #F3F4F8;
             color: #1F2430;
             font-family: "Segoe UI";
-            font-size: 11pt;
+            font-size: 10.5pt;
         }
 
-        /* ---- Header ---- */
-        #headerCard {
+        #headerBar, #panelCard, #metricCard {
             background: #FFFFFF;
-            border: 1px solid #ECECF5;
-            border-radius: 18px;
+            border: 1px solid #E5E7EF;
+            border-radius: 14px;
         }
 
-        #headerBadge {
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                        stop:0 #6366F1, stop:1 #7C6CF6);
-            border-radius: 14px;
+        #headerIconText {
+            background: #5B4FE9;
             color: #FFFFFF;
-            font-size: 20pt;
             font-weight: 700;
+            font-size: 13pt;
+            border-radius: 14px;
         }
 
         #appTitle {
-            font-size: 20pt;
-            font-weight: 800;
-            color: #16181F;
+            font-size: 17pt;
+            font-weight: 700;
+            color: #14161B;
+            background: transparent;
         }
-
         #appSubtitle {
-            font-size: 10pt;
-            color: #8B8FA3;
-        }
-
-        #headerTag {
-            background: #EEEEFB;
-            color: #5B54E8;
-            border-radius: 16px;
-            padding: 8px 16px;
-            font-weight: 600;
             font-size: 9.5pt;
+            color: #767C8C;
+            background: transparent;
         }
 
-        /* ---- Section numbering ---- */
-        #sectionNumber {
-            background: #ECEAFE;
-            color: #5B54E8;
-            border-radius: 12px;
-            font-size: 14pt;
-            font-weight: 800;
-        }
-
-        #sectionTitle {
-            font-size: 14pt;
-            font-weight: 800;
-            color: #16181F;
-        }
-
-        #sectionSubtitle {
-            font-size: 9.5pt;
-            color: #8B8FA3;
-        }
-
-        /* ---- Panels ---- */
-        QGroupBox#panelCard {
-            background: #FFFFFF;
-            border: 1px solid #ECECF5;
-            border-radius: 18px;
-            padding: 18px 14px 14px 14px;
-        }
-
-        QLabel {
-            color: #4B4F5C;
-        }
-
-        QLineEdit, QComboBox {
-            background: #FCFCFF;
-            border: 1px solid #E3E4EF;
-            border-radius: 10px;
-            padding: 9px 10px;
-            color: #1F2430;
-            selection-background-color: #6366F1;
-        }
-
-        QLineEdit:focus, QComboBox:focus {
-            border: 1px solid #6366F1;
-        }
-
-        QLineEdit::placeholder {
-            color: #B0B3C2;
-        }
-
-        QComboBox::drop-down {
-            border: none;
-            width: 22px;
-        }
-
-        QComboBox QAbstractItemView {
-            background: #FFFFFF;
-            border: 1px solid #E3E4EF;
-            selection-background-color: #6366F1;
-            selection-color: #FFFFFF;
-            outline: none;
-            color: #1F2430;
-        }
-
-        /* ---- Info banner (stability rule) ---- */
-        #infoBanner {
-            background: #EEF3FF;
+        #pillBadge {
+            background: #EDEAFE;
+            color: #5B4FE9;
             border-radius: 14px;
+            padding: 7px 14px;
+            font-weight: 600;
+            font-size: 9pt;
         }
-        #infoTitle {
-            color: #2E5CE6;
+
+        #sectionBadge {
+            background: #EDEAFE;
+            color: #5B4FE9;
             font-weight: 700;
             font-size: 10.5pt;
+            border-radius: 8px;
         }
-        #infoBody {
-            color: #4C6FD6;
+        #sectionTitle {
+            font-size: 13pt;
+            font-weight: 700;
+            color: #14161B;
+            background: transparent;
+        }
+        #sectionSubtitle {
             font-size: 9.5pt;
+            color: #767C8C;
+            background: transparent;
         }
 
-        /* ---- Buttons (pill-shaped) ---- */
+        #cardTitle {
+            font-size: 12pt;
+            font-weight: 700;
+            color: #14161B;
+            background: transparent;
+        }
+        #cardSubtitle {
+            font-size: 9pt;
+            color: #8A90A0;
+            background: transparent;
+        }
+
+        #fieldLabel {
+            font-size: 10pt;
+            font-weight: 600;
+            color: #2B2F3A;
+            background: transparent;
+        }
+
+        /* ---- Model tiles (radio-button style selector) ---- */
+        #modelTile {
+            background: #FFFFFF;
+            border: 1.5px solid #E5E7EF;
+            border-radius: 12px;
+        }
+        #modelTile:hover {
+            border: 1.5px solid #B9B2F7;
+            background: #FAFAFF;
+        }
+        #modelTile:checked {
+            background: #F1EFFE;
+            border: 1.5px solid #5B4FE9;
+        }
+        #tileName {
+            font-weight: 700;
+            font-size: 10pt;
+            color: #14161B;
+            background: transparent;
+        }
+        #tileSub {
+            font-size: 8pt;
+            color: #8A90A0;
+            background: transparent;
+        }
+
+        QLineEdit {
+            background: #FFFFFF;
+            border: 1px solid #DCDFE8;
+            border-radius: 9px;
+            padding: 6px 10px;
+            color: #14161B;
+        }
+        QLineEdit:focus {
+            border: 1px solid #5B4FE9;
+        }
+
+        #plainDropdown {
+            background: #FFFFFF;
+            color: #2B2F3A;
+            border: 1px solid #DCDFE8;
+            border-radius: 9px;
+            padding: 5px 8px;
+        }
+
+        QComboBox::drop-down { border: none; width: 20px; }
+        QComboBox QAbstractItemView {
+            background: #FFFFFF;
+            border: 1px solid #DCDFE8;
+            selection-background-color: #EDEAFE;
+            selection-color: #5B4FE9;
+            outline: none;
+        }
+
+        #infoBoxLight {
+            background: #F7F6FC;
+            border: 1px solid #E9E7F6;
+            border-radius: 10px;
+        }
+        #descText {
+            color: #5B5F6E;
+            font-size: 9.5pt;
+            background: transparent;
+        }
+
+        #infoBoxBlue {
+            background: #EEF4FF;
+            border: 1px solid #D8E6FF;
+            border-radius: 10px;
+        }
+        #stabilityTitle {
+            color: #1B4FBF;
+            font-weight: 700;
+            font-size: 10.5pt;
+            background: transparent;
+        }
+        #stabilityDetail {
+            color: #3A63B8;
+            font-size: 9pt;
+            background: transparent;
+        }
+
         #primaryButton {
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                        stop:0 #6366F1, stop:1 #7C6CF6);
+            background: #5B4FE9;
             color: #FFFFFF;
             border: none;
-            border-radius: 23px;
+            border-radius: 24px;
             font-weight: 700;
             font-size: 11pt;
+            text-align: left;
+            padding-left: 20px;
         }
-        #primaryButton:hover {
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                        stop:0 #7476F5, stop:1 #8C7DFF);
-        }
-        #primaryButton:pressed {
-            background: #5350D6;
-        }
+        #primaryButton:hover { background: #6E63EE; }
+        #primaryButton:pressed { background: #4C41D1; }
 
         #secondaryButton {
             background: #FFFFFF;
-            color: #4B4F5C;
-            border: 1px solid #E3E4EF;
-            border-radius: 23px;
-            font-weight: 600;
+            color: #5B4FE9;
+            border: 1px solid #5B4FE9;
+            border-radius: 24px;
+            font-weight: 700;
             font-size: 11pt;
+            text-align: left;
+            padding-left: 20px;
         }
-        #secondaryButton:hover {
-            border: 1px solid #6366F1;
-            color: #6366F1;
-        }
-        #secondaryButton:pressed {
-            background: #F7F7FC;
-        }
+        #secondaryButton:hover { background: #F5F3FF; }
+        #secondaryButton:pressed { background: #EDEAFE; }
 
-        /* ---- Status banner (errors / unstable system) ---- */
         #statusBanner {
-            background: #FDECEC;
-            border-radius: 12px;
-            color: #E4574C;
+            background: #FDEAEA;
+            border: 1px solid #F7C9CB;
+            border-radius: 22px;
+            color: #C0292E;
             font-weight: 600;
-            padding: 12px 16px;
+            padding: 12px 18px;
         }
-
-        /* ---- Metric cards ---- */
-        #metricCard {
-            background: #FFFFFF;
-            border: 1px solid #EDEDF5;
-            border-radius: 16px;
-        }
-        #metricCard[accent="purple"] { border-left: 4px solid #8B7CF6; }
-        #metricCard[accent="blue"]   { border-left: 4px solid #4C8DF6; }
-        #metricCard[accent="green"]  { border-left: 4px solid #34C787; }
-        #metricCard[accent="orange"] { border-left: 4px solid #F5A84C; }
-        #metricCard[accent="pink"]   { border-left: 4px solid #F0679B; }
-        #metricCard[accent="teal"]   { border-left: 4px solid #2CC1BE; }
-        #metricCard[accent="gray"]   { border-left: 4px solid #A6A9B8; }
 
         #metricTitle {
-            color: #8B8FA3;
-            font-size: 9pt;
+            color: #2B2F3A;
+            font-size: 9.5pt;
             font-weight: 600;
+            background: transparent;
         }
-
         #metricValue {
-            color: #16181F;
-            font-size: 19pt;
-            font-weight: 800;
+            color: #14161B;
+            font-size: 18pt;
+            font-weight: 700;
+            background: transparent;
         }
-        #metricValue[accent="purple"] { color: #6C5CE0; }
-        #metricValue[accent="blue"]   { color: #2F6FE0; }
-        #metricValue[accent="green"]  { color: #1FA76B; }
-        #metricValue[accent="orange"] { color: #E08F2C; }
-        #metricValue[accent="pink"]   { color: #E0447F; }
-        #metricValue[accent="teal"]   { color: #189B98; }
-        #metricValue[accent="gray"]   { color: #6B6F80; }
+        #metricCaption {
+            color: #9098A8;
+            font-size: 8.5pt;
+            background: transparent;
+        }
+        #metricProgress {
+            background: #EDEEF2;
+            border: none;
+            border-radius: 3px;
+        }
+        #metricProgress::chunk {
+            background: #5B4FE9;
+            border-radius: 3px;
+        }
+
+        #tipBar {
+            background: #F7F7FA;
+            border-top: 1px solid #E5E7EF;
+        }
+        #tipText {
+            color: #767C8C;
+            font-size: 9.5pt;
+            background: transparent;
+        }
     )");
-}
-
-// ==========================================================================
-// makeSectionHeader
-// --------------------------------------------------------------------------
-// Builds the "01  Section Title / subtitle" row used above each major
-// panel, mirroring the numbered-section pattern from the reference design
-// (a rounded badge with the step number, next to a bold title and a
-// muted description). Returns a QHBoxLayout ready to be added to the
-// main vertical layout.
-// ==========================================================================
-QHBoxLayout *MainWindow::makeSectionHeader(const QString &number, const QString &sectionTitle,
-                                            const QString &sectionSubtitle)
-{
-    QHBoxLayout *row = new QHBoxLayout();
-    row->setSpacing(12);
-
-    QLabel *numberBadge = new QLabel(number);
-    numberBadge->setObjectName("sectionNumber");
-    numberBadge->setFixedSize(40, 40);
-    numberBadge->setAlignment(Qt::AlignCenter);
-
-    QVBoxLayout *textBlock = new QVBoxLayout();
-    textBlock->setSpacing(1);
-
-    QLabel *titleLbl = new QLabel(sectionTitle);
-    titleLbl->setObjectName("sectionTitle");
-
-    QLabel *subLbl = new QLabel(sectionSubtitle);
-    subLbl->setObjectName("sectionSubtitle");
-
-    textBlock->addWidget(titleLbl);
-    textBlock->addWidget(subLbl);
-
-    row->addWidget(numberBadge);
-    row->addLayout(textBlock, 1);
-
-    return row;
 }
 
 void MainWindow::changeModel()
@@ -567,7 +819,7 @@ void MainWindow::changeModel()
     // so hide its card by default and show it only for those two cases.
     pBlockCard->hide();
 
-    QString model = modelBox->currentText();
+    QString model = currentModel();
 
     if(model == "M/M/s")
     {
@@ -597,6 +849,11 @@ void MainWindow::changeModel()
         varianceEdit->show();
     }
 
+    // Update the model description box and the stability banner
+    modelDescriptionLabel->setText(modelDescriptionFor(model));
+    stabilityTitleLabel->setText(stabilityTitleFor(model));
+    stabilityDetailLabel->setText(stabilityDetailFor(model));
+
     // Switching models invalidates any previously shown error/results,
     // so clear the status message when the user changes their selection.
     statusLabel->hide();
@@ -605,27 +862,14 @@ void MainWindow::changeModel()
 
 // ==========================================================================
 // unitFromComboBox
-// --------------------------------------------------------------------------
-// Maps the text of a "Hours"/"Minutes"/"Seconds" QComboBox to the
-// matching TimeUnit enum value used by convertToRatePerMinute().
 // ==========================================================================
 TimeUnit MainWindow::unitFromComboBox(QComboBox *box) const
 {
-    QString text = box->currentText();
-    if (text == "Hours") {
-        return TimeUnit::Hours;
-    } else if (text == "Seconds") {
-        return TimeUnit::Seconds;
-    }
-    return TimeUnit::Minutes;
+    return static_cast<TimeUnit>(box->currentData().toInt());
 }
 
 // ==========================================================================
 // isMeanFromComboBox
-// --------------------------------------------------------------------------
-// Maps the text of a "Rate"/"Mean Time" QComboBox to a bool: true when
-// the user selected "Mean Time" (so the entered number is an average
-// time per event, not a rate).
 // ==========================================================================
 bool MainWindow::isMeanFromComboBox(QComboBox *box) const
 {
@@ -634,14 +878,10 @@ bool MainWindow::isMeanFromComboBox(QComboBox *box) const
 
 // ==========================================================================
 // showError
-// --------------------------------------------------------------------------
-// Displays "message" in the red status banner and blanks out every result
-// card so stale numbers from a previous (valid) calculation are never
-// left on screen next to an error.
 // ==========================================================================
 void MainWindow::showError(const QString &message)
 {
-    statusLabel->setText(message);
+    statusLabel->setText("Error: " + message);
     statusLabel->show();
 
     rhoValue->setText("-");
@@ -652,25 +892,20 @@ void MainWindow::showError(const QString &message)
     wValue->setText("-");
     pBlockValue->setText("-");
     throughputValue->setText("-");
+
+    if (rhoProgress) rhoProgress->setValue(0);
+    if (throughputProgress) throughputProgress->setValue(0);
 }
 
 // ==========================================================================
 // calculate
-// --------------------------------------------------------------------------
-// Reads the text from the input fields, validates/parses it using the
-// helpers in utilities.h, converts lambda and mu to a standardized
-// "events per minute" rate (regardless of the Rate/Mean Time mode or
-// Hours/Minutes/Seconds unit the user picked for each), calls the
-// matching calculate*() function from queue_models.h for the currently
-// selected model, and displays the returned QueueResults (or an error
-// message if inputs/stability fail).
 // ==========================================================================
 void MainWindow::calculate()
 {
     statusLabel->hide();
     statusLabel->setText("");
 
-    QString model = modelBox->currentText();
+    QString model = currentModel();
 
     // ---- Parse the raw numbers the user typed for lambda and mu ----
     double lambdaRaw = 0.0;
@@ -687,10 +922,6 @@ void MainWindow::calculate()
     }
 
     // ---- Standardize lambda and mu to "events per minute" ----
-    // This is where the Rate-vs-Mean-Time and Hours/Minutes/Seconds
-    // conversion happens, so lambda and mu end up in the SAME unit
-    // even if the user entered them completely differently (e.g.
-    // lambda as "customers per hour" and mu as "mean minutes to serve").
     double lambda = convertToRatePerMinute(lambdaRaw, isMeanFromComboBox(lambdaModeBox), unitFromComboBox(lambdaUnitBox));
     double mu     = convertToRatePerMinute(muRaw,     isMeanFromComboBox(muModeBox),     unitFromComboBox(muUnitBox));
 
@@ -762,6 +993,19 @@ void MainWindow::calculate()
     wValue->setText(QString::fromStdString(formatMeasure(result.W)));
     pBlockValue->setText(QString::fromStdString(formatMeasure(result.Pblock)));
     throughputValue->setText(QString::fromStdString(formatMeasure(result.throughput)));
+
+    // ---- Update progress bars (Utilization % and Throughput efficiency %) ----
+    if (rhoProgress) {
+        int rhoPercent = static_cast<int>(qBound(0.0, result.rho * 100.0, 100.0));
+        rhoProgress->setValue(rhoPercent);
+    }
+    if (throughputProgress) {
+        // Efficiency = how much of the arriving traffic actually gets
+        // through vs. how much arrived in the first place (lambda).
+        double efficiency = (lambda > 0.0) ? (result.throughput / lambda) : 0.0;
+        int effPercent = static_cast<int>(qBound(0.0, efficiency * 100.0, 100.0));
+        throughputProgress->setValue(effPercent);
+    }
 }
 
 void MainWindow::clearFields()
@@ -785,6 +1029,9 @@ void MainWindow::clearFields()
     wValue->setText("0.0000");
     pBlockValue->setText("N/A");
     throughputValue->setText("0.0000");
+
+    if (rhoProgress) rhoProgress->setValue(0);
+    if (throughputProgress) throughputProgress->setValue(0);
 
     statusLabel->hide();
     statusLabel->setText("");
