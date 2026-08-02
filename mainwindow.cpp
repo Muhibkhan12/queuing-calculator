@@ -121,6 +121,10 @@ QFrame *MainWindow::createMetricCard(const QString &accentColor, const QString &
         bar->setValue(0);
         bar->setTextVisible(false);
         bar->setFixedHeight(6);
+        bar->setStyleSheet(QString(
+            "QProgressBar#metricProgress { background: #EDEDED; border: none; border-radius: 3px; }"
+            "QProgressBar#metricProgress::chunk { background: %1; border-radius: 3px; }"
+        ).arg(accentColor));
         cardLayout->addWidget(bar);
         progressBarOut = bar;
     } else {
@@ -451,15 +455,37 @@ void MainWindow::setupUI()
     pageLayout->addWidget(stabilityBanner);
 
     // ---- Buttons ----
-    calculateButton = new QPushButton("Calculate                                        →");
+    calculateButton = new QPushButton();
     calculateButton->setObjectName("primaryButton");
     calculateButton->setCursor(Qt::PointingHandCursor);
-    calculateButton->setMinimumHeight(48);
+    calculateButton->setFixedHeight(70);
+    {
+        QHBoxLayout *btnLayout = new QHBoxLayout(calculateButton);
+        btnLayout->setContentsMargins(20, 20, 20, 20);
+        QLabel *btnText = new QLabel("CALCULATE");
+        btnText->setObjectName("primaryButtonText");
+        QLabel *btnArrow = new QLabel("→");
+        btnArrow->setObjectName("primaryButtonArrow");
+        btnLayout->addWidget(btnText);
+        btnLayout->addStretch();
+        btnLayout->addWidget(btnArrow);
+    }
 
-    clearButton = new QPushButton("Clear All                                        →");
+    clearButton = new QPushButton();
     clearButton->setObjectName("secondaryButton");
     clearButton->setCursor(Qt::PointingHandCursor);
-    clearButton->setMinimumHeight(48);
+    clearButton->setFixedHeight(70);
+    {
+        QHBoxLayout *btnLayout = new QHBoxLayout(clearButton);
+        btnLayout->setContentsMargins(20, 20, 20, 20);
+        QLabel *btnText = new QLabel("CLEAR ALL");
+        btnText->setObjectName("secondaryButtonText");
+        QLabel *btnArrow = new QLabel("→");
+        btnArrow->setObjectName("secondaryButtonArrow");
+        btnLayout->addWidget(btnText);
+        btnLayout->addStretch();
+        btnLayout->addWidget(btnArrow);
+    }
 
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(14);
@@ -527,14 +553,14 @@ void MainWindow::setupUI()
 
     QProgressBar *unusedBar = nullptr;
 
-    rhoCard        = createMetricCard("#5B4FE9", "Utilization (ρ)",         "(λ / μ)",       "0.0000", rhoValue, true, rhoProgress);
-    p0Card         = createMetricCard("#2F6FED", "Prob. Empty (P₀)",        "(Probability)", "0.0000", p0Value, false, unusedBar);
+    rhoCard        = createMetricCard("#6C5CE7", "Utilization (ρ)",         "(λ / μ)",       "0.0000", rhoValue, true, rhoProgress);
+    p0Card         = createMetricCard("#2F80ED", "Prob. Empty (P₀)",        "(Probability)", "0.0000", p0Value, false, unusedBar);
     lqCard         = createMetricCard("#12A594", "Avg. in Queue (Lq)",      "(Customers)",   "0.0000", lqValue, false, unusedBar);
     lCard          = createMetricCard("#E0447B", "Avg. in System (L)",      "(Customers)",   "0.0000", lValue, false, unusedBar);
     wqCard         = createMetricCard("#E08E1D", "Avg. Wait (Wq)",          "(Minutes)",     "0.0000", wqValue, false, unusedBar);
-    wCard          = createMetricCard("#1FA34D", "Avg. Time in System (W)", "(Minutes)",     "0.0000", wValue, false, unusedBar);
-    pBlockCard     = createMetricCard("#5B4FE9", "Blocking Prob. (Pblock)", "(Probability)", "N/A",     pBlockValue, false, unusedBar);
-    throughputCard = createMetricCard("#12A594", "Throughput (λeff)",       "(Per Minute)",  "0.0000", throughputValue, true, throughputProgress);
+    wCard          = createMetricCard("#27AE60", "Avg. Time in System (W)", "(Minutes)",     "0.0000", wValue, false, unusedBar);
+    pBlockCard     = createMetricCard("#6C5CE7", "Blocking Prob. (Pblock)", "(Probability)", "N/A",     pBlockValue, false, unusedBar);
+    throughputCard = createMetricCard("#0EA5A5", "Throughput (λeff)",       "(Per Minute)",  "0.0000", throughputValue, true, throughputProgress);
 
     resultsGrid->addWidget(rhoCard,        0, 0);
     resultsGrid->addWidget(p0Card,         0, 1);
@@ -569,20 +595,20 @@ void MainWindow::setupUI()
     // ================= Stylesheet (light theme) =================
     setStyleSheet(R"(
         QMainWindow, QWidget {
-            background: #F3F4F8;
-            color: #1F2430;
+            background: #FFFFFF;
+            color: #8A8A8A;
             font-family: "Segoe UI";
             font-size: 10.5pt;
         }
 
         #headerBar, #panelCard, #metricCard {
-            background: #FFFFFF;
-            border: 1px solid #E5E7EF;
+            background: #F6F6F7;
+            border: 1px solid #E2E2E2;
             border-radius: 14px;
         }
 
         #headerIconText {
-            background: #5B4FE9;
+            background: #111111;
             color: #FFFFFF;
             font-weight: 700;
             font-size: 13pt;
@@ -592,18 +618,19 @@ void MainWindow::setupUI()
         #appTitle {
             font-size: 17pt;
             font-weight: 700;
-            color: #14161B;
+            color: #2B2B2B;
             background: transparent;
         }
         #appSubtitle {
             font-size: 9.5pt;
-            color: #767C8C;
+            color: #9A9A9A;
             background: transparent;
         }
 
         #pillBadge {
-            background: #EDEAFE;
-            color: #5B4FE9;
+            background: #FAFAFA;
+            color: #6B6B6B;
+            border: 1px solid #E2E2E2;
             border-radius: 14px;
             padding: 7px 14px;
             font-weight: 600;
@@ -611,8 +638,8 @@ void MainWindow::setupUI()
         }
 
         #sectionBadge {
-            background: #EDEAFE;
-            color: #5B4FE9;
+            background: #111111;
+            color: #FFFFFF;
             font-weight: 700;
             font-size: 10.5pt;
             border-radius: 8px;
@@ -620,184 +647,195 @@ void MainWindow::setupUI()
         #sectionTitle {
             font-size: 13pt;
             font-weight: 700;
-            color: #14161B;
+            color: #2B2B2B;
             background: transparent;
         }
         #sectionSubtitle {
             font-size: 9.5pt;
-            color: #767C8C;
+            color: #9A9A9A;
             background: transparent;
         }
 
         #cardTitle {
             font-size: 12pt;
             font-weight: 700;
-            color: #14161B;
+            color: #2B2B2B;
             background: transparent;
         }
         #cardSubtitle {
             font-size: 9pt;
-            color: #8A90A0;
+            color: #9A9A9A;
             background: transparent;
         }
 
         #fieldLabel {
             font-size: 10pt;
             font-weight: 600;
-            color: #2B2F3A;
+            color: #4A4A4A;
             background: transparent;
         }
 
         /* ---- Model tiles (radio-button style selector) ---- */
         #modelTile {
             background: #FFFFFF;
-            border: 1.5px solid #E5E7EF;
-            border-radius: 12px;
+            border: 1.5px solid #E2E2E2;
+            border-radius: 10px;
         }
         #modelTile:hover {
-            border: 1.5px solid #B9B2F7;
-            background: #FAFAFF;
+            border: 1.5px solid #B5B5B5;
+            background: #FAFAFA;
         }
         #modelTile:checked {
-            background: #F1EFFE;
-            border: 1.5px solid #5B4FE9;
+            background: #F0F0F0;
+            border: 1.5px solid #9A9A9A;
         }
         #tileName {
             font-weight: 700;
             font-size: 10pt;
-            color: #14161B;
+            color: #2B2B2B;
             background: transparent;
         }
         #tileSub {
             font-size: 8pt;
-            color: #8A90A0;
+            color: #9A9A9A;
             background: transparent;
         }
 
         QLineEdit {
             background: #FFFFFF;
-            border: 1px solid #DCDFE8;
-            border-radius: 9px;
+            border: 1px solid #E2E2E2;
+            border-radius: 8px;
             padding: 6px 10px;
-            color: #14161B;
+            color: #2B2B2B;
         }
         QLineEdit:focus {
-            border: 1px solid #5B4FE9;
+            border: 1.5px solid #9A9A9A;
         }
 
         #plainDropdown {
             background: #FFFFFF;
-            color: #2B2F3A;
-            border: 1px solid #DCDFE8;
-            border-radius: 9px;
+            color: #6B6B6B;
+            border: 1px solid #E2E2E2;
+            border-radius: 8px;
             padding: 5px 8px;
         }
 
         QComboBox::drop-down { border: none; width: 20px; }
         QComboBox QAbstractItemView {
             background: #FFFFFF;
-            border: 1px solid #DCDFE8;
-            selection-background-color: #EDEAFE;
-            selection-color: #5B4FE9;
+            border: 1px solid #E2E2E2;
+            selection-background-color: #F0F0F0;
+            selection-color: #2B2B2B;
             outline: none;
         }
 
         #infoBoxLight {
-            background: #F7F6FC;
-            border: 1px solid #E9E7F6;
+            background: #FAFAFA;
+            border: 1px solid #E2E2E2;
             border-radius: 10px;
         }
         #descText {
-            color: #5B5F6E;
+            color: #6B6B6B;
             font-size: 9.5pt;
             background: transparent;
         }
 
         #infoBoxBlue {
-            background: #EEF4FF;
-            border: 1px solid #D8E6FF;
+            background: #FAFAFA;
+            border: 1px solid #E2E2E2;
             border-radius: 10px;
         }
         #stabilityTitle {
-            color: #1B4FBF;
+            color: #2B2B2B;
             font-weight: 700;
             font-size: 10.5pt;
             background: transparent;
         }
         #stabilityDetail {
-            color: #3A63B8;
+            color: #9A9A9A;
             font-size: 9pt;
             background: transparent;
         }
 
+        /* ---- Buttons: slightly rounded rectangles (not full pill) ---- */
         #primaryButton {
-            background: #5B4FE9;
-            color: #FFFFFF;
+            background: #111111;
             border: none;
-            border-radius: 24px;
+            border-radius: 30px;
+        }
+        #primaryButton:hover { background: #2B2B2B; }
+        #primaryButton:pressed { background: #000000; }
+        #primaryButtonText {
+            color: #FFFFFF;
             font-weight: 700;
             font-size: 11pt;
-            text-align: left;
-            padding-left: 20px;
+            background: transparent;
         }
-        #primaryButton:hover { background: #6E63EE; }
-        #primaryButton:pressed { background: #4C41D1; }
+        #primaryButtonArrow {
+            color: #FFFFFF;
+            font-weight: 700;
+            font-size: 13pt;
+            background: transparent;
+        }
 
         #secondaryButton {
-            background: #FFFFFF;
-            color: #5B4FE9;
-            border: 1px solid #5B4FE9;
-            border-radius: 24px;
+            background: #FAFAFA;
+            border: 1px solid #E2E2E2;
+            border-radius: 30px;
+        }
+        #secondaryButton:hover { background: #F0F0F0; }
+        #secondaryButton:pressed { background: #E5E5E5; }
+        #secondaryButtonText {
+            color: #2B2B2B;
             font-weight: 700;
             font-size: 11pt;
-            text-align: left;
-            padding-left: 20px;
+            background: transparent;
         }
-        #secondaryButton:hover { background: #F5F3FF; }
-        #secondaryButton:pressed { background: #EDEAFE; }
+        #secondaryButtonArrow {
+            color: #2B2B2B;
+            font-weight: 700;
+            font-size: 13pt;
+            background: transparent;
+        }
 
         #statusBanner {
-            background: #FDEAEA;
-            border: 1px solid #F7C9CB;
+            background: #FAFAFA;
+            border: 1px solid #D6D6D6;
             border-radius: 22px;
-            color: #C0292E;
+            color: #4A4A4A;
             font-weight: 600;
             padding: 12px 18px;
         }
 
         #metricTitle {
-            color: #2B2F3A;
+            color: #4A4A4A;
             font-size: 9.5pt;
             font-weight: 600;
             background: transparent;
         }
         #metricValue {
-            color: #14161B;
+            color: #2B2B2B;
             font-size: 18pt;
             font-weight: 700;
             background: transparent;
         }
         #metricCaption {
-            color: #9098A8;
+            color: #ACACAC;
             font-size: 8.5pt;
             background: transparent;
         }
         #metricProgress {
-            background: #EDEEF2;
+            background: #EDEDED;
             border: none;
-            border-radius: 3px;
-        }
-        #metricProgress::chunk {
-            background: #5B4FE9;
             border-radius: 3px;
         }
 
         #tipBar {
-            background: #F7F7FA;
-            border-top: 1px solid #E5E7EF;
+            background: #FAFAFA;
+            border-top: 1px solid #E2E2E2;
         }
         #tipText {
-            color: #767C8C;
+            color: #9A9A9A;
             font-size: 9.5pt;
             background: transparent;
         }
